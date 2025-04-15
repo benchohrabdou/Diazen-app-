@@ -25,7 +25,7 @@ class PasswordUpdateSuccesScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Your password have been succesfully reset.\nClick confirm to set a new password',
+                'Your password has been successfully reset.\nClick confirm to set a new password',
                 style: TextStyle(
                   fontSize: 14,
                   color: Color(0xFF7B6F72),
@@ -65,4 +65,4 @@ class PasswordUpdateSuccesScreen extends StatelessWidget {
       ),
     );
   }
-} 
+}

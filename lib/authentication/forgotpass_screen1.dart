@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:diazen/authentication/verificateemailscreen.dart';
 
 class ForgotpassScreen extends StatefulWidget {
@@ -26,12 +27,12 @@ class _ForgotpassScreenState extends State<ForgotpassScreen> {
 
   @override
   void dispose() {
-      _emailController.removeListener(_onTextChanged);
+    _emailController.removeListener(_onTextChanged);
     _emailController.dispose();
     super.dispose();
   }
 
-  void _onResetPressed() {
+  void _onResetPressed() async {
     final email = _emailController.text.trim();
     if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -39,12 +40,20 @@ class _ForgotpassScreenState extends State<ForgotpassScreen> {
       );
       return;
     }
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => VerificateemailScreen(email: email),
-      ),
-    );
+
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => VerificateemailScreen(email: email),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? 'Error occurred')),
+      );
+    }
   }
 
   @override
@@ -95,14 +104,18 @@ class _ForgotpassScreenState extends State<ForgotpassScreen> {
               controller: _emailController,
               decoration: InputDecoration(
                 hintText: 'Enter your email',
-                hintStyle: const TextStyle(color: Colors.grey,fontFamily: 'SfProDisplay',),
+                hintStyle: const TextStyle(
+                  color: Colors.grey,
+                  fontFamily: 'SfProDisplay',
+                ),
                 filled: true,
                 fillColor: const Color(0xFFF2F2F2),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               ),
               keyboardType: TextInputType.emailAddress,
             ),

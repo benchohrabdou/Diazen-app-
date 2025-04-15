@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:diazen/authentication/password_update_succes_screen.dart';
 
 class NewPasswordScreen extends StatefulWidget {
@@ -10,7 +11,8 @@ class NewPasswordScreen extends StatefulWidget {
 
 class _NewPasswordScreenState extends State<NewPasswordScreen> {
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isTyping = false;
@@ -24,7 +26,8 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
 
   void _onTextChanged() {
     setState(() {
-      _isTyping = _passwordController.text.isNotEmpty || _confirmPasswordController.text.isNotEmpty;
+      _isTyping = _passwordController.text.isNotEmpty ||
+          _confirmPasswordController.text.isNotEmpty;
     });
   }
 
@@ -37,8 +40,9 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
     super.dispose();
   }
 
-  void _onUpdatePressed() {
-    if (_passwordController.text.isEmpty || _confirmPasswordController.text.isEmpty) {
+  void _onUpdatePressed() async {
+    if (_passwordController.text.isEmpty ||
+        _confirmPasswordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in all fields')),
       );
@@ -52,14 +56,22 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
       return;
     }
 
-    // Ici vous pouvez ajouter la logique pour mettre à jour le mot de passe
-        // Navigation vers l'écran de succès
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const PasswordUpdateSuccesScreen(),
-      ),
-    );
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await user.updatePassword(_passwordController.text);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const PasswordUpdateSuccesScreen(),
+          ),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? 'Error occurred')),
+      );
+    }
   }
 
   @override
@@ -123,7 +135,8 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 suffixIcon: IconButton(
                   icon: Icon(
                     _obscurePassword ? Icons.visibility_off : Icons.visibility,
@@ -164,10 +177,13 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 suffixIcon: IconButton(
                   icon: Icon(
-                    _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                    _obscureConfirmPassword
+                        ? Icons.visibility_off
+                        : Icons.visibility,
                     color: Colors.grey,
                   ),
                   onPressed: () {
@@ -204,4 +220,4 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
       ),
     );
   }
-} 
+}

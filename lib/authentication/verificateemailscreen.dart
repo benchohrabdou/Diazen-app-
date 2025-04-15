@@ -35,12 +35,12 @@ class _VerificateemailScreenState extends State<VerificateemailScreen> {
       );
       return;
     }
-    
-    // Navigation vers l'écran de succès
+
+    // Navigation to the success screen
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (context) =>  PasswordResetSucceesScreen(),
+        builder: (context) => PasswordResetSucceesScreen(),
       ),
     );
   }
@@ -119,7 +119,8 @@ class _VerificateemailScreenState extends State<VerificateemailScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(color: Color(0xFF92A3FD), width: 1),
+                          borderSide: const BorderSide(
+                              color: Color(0xFF92A3FD), width: 1),
                         ),
                       ),
                       onChanged: (value) {
@@ -190,4 +191,4 @@ class _VerificateemailScreenState extends State<VerificateemailScreen> {
       ),
     );
   }
-} 
+}
