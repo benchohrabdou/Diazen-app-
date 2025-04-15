@@ -1,3 +1,4 @@
+import 'package:diazen/authentication/forgotpass_screen1.dart.dart';
 import 'package:diazen/authentication/signuppage.dart';
 import 'package:flutter/material.dart';
 
@@ -118,9 +119,45 @@ class _LoginpageState extends State<Loginpage> {
                             const SizedBox(
                               height: 10.0,
                             ),
-                            const Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [Text("Forgot password?",style: TextStyle(fontFamily: 'SfProDisplay'),)],
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                //Remember me
+                                Row(children: [
+                                  Checkbox( value: rememberPassword,
+                                onChanged: (bool? value) {
+                                  setState(() {
+                                    rememberPassword = value!;
+                                  });
+                                },
+                                activeColor:const Color(0xFF4A7BF7),),
+                                const Text(
+                                'Remember me',
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                ),
+                              ),
+                                ],),
+                                //Fogotpassword
+                                GestureDetector(
+                                  onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (e) => const ForgotpassScreen(),
+                                ),
+                              );
+                            },
+                            child: const Text(
+                              'Forget password?',
+                              style: TextStyle(
+                                fontFamily: 'SfProDisplay',
+                                fontWeight: FontWeight.bold,
+                                color:Colors.grey ,
+                              ),
+                            ),
+                          ),
+                                ],
                             ),
                             const SizedBox(height:25),
                               ElevatedButton(
@@ -148,7 +185,7 @@ class _LoginpageState extends State<Loginpage> {
                               borderRadius: BorderRadius.circular(20),
                               ),
                               ),
-                                child: const Text('Sign in',style: TextStyle(
+                                child:  const Text('Sign in',style: TextStyle(
                                   color:Colors.white,
                                   fontFamily: 'SfProDisplay',
                                   fontWeight: FontWeight.bold,
