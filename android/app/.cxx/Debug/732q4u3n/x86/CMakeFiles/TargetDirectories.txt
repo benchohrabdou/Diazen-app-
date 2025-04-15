@@ -1,0 +1,2 @@
+C:/Users/Pc Bridge/Desktop/tttt/diazen/android/app/.cxx/Debug/732q4u3n/x86/CMakeFiles/edit_cache.dir
+C:/Users/Pc Bridge/Desktop/tttt/diazen/android/app/.cxx/Debug/732q4u3n/x86/CMakeFiles/rebuild_cache.dir

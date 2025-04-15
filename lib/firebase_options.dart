@@ -47,19 +47,19 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCDExLCzXYUX3zCAhUPUmzoAL7V9j97XqI',
-    appId: '1:892322461443:android:672df538baf2a258501b36',
-    messagingSenderId: '892322461443',
-    projectId: 'diazen-c1eb7',
-    storageBucket: 'diazen-c1eb7.firebasestorage.app',
+    apiKey: 'AIzaSyDtVEaGABl5tuJ2aQAQbvKfl3qCzkHRcB8',
+    appId: '1:1085790160027:android:6a6f845e8ea9407f09f23e',
+    messagingSenderId: '1085790160027',
+    projectId: 'diazen-main',
+    storageBucket: 'diazen-main.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCO1cNln6NoVbvvCt2rPzBCg7x3IRLW984',
-    appId: '1:892322461443:ios:373b40f04dc94e59501b36',
-    messagingSenderId: '892322461443',
-    projectId: 'diazen-c1eb7',
-    storageBucket: 'diazen-c1eb7.firebasestorage.app',
+    apiKey: 'AIzaSyBxjUogWbHJTDUgnJD5V_9WAZ906OetFH0',
+    appId: '1:1085790160027:ios:1c6a9fb532aa0e2409f23e',
+    messagingSenderId: '1085790160027',
+    projectId: 'diazen-main',
+    storageBucket: 'diazen-main.firebasestorage.app',
     iosBundleId: 'com.example.diazen',
   );
 

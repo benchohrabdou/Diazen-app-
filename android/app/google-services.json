@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "892322461443",
-    "project_id": "diazen-c1eb7",
-    "storage_bucket": "diazen-c1eb7.firebasestorage.app"
+    "project_number": "1085790160027",
+    "project_id": "diazen-main",
+    "storage_bucket": "diazen-main.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:892322461443:android:672df538baf2a258501b36",
+        "mobilesdk_app_id": "1:1085790160027:android:6a6f845e8ea9407f09f23e",
         "android_client_info": {
           "package_name": "com.example.diazen"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCDExLCzXYUX3zCAhUPUmzoAL7V9j97XqI"
+          "current_key": "AIzaSyDtVEaGABl5tuJ2aQAQbvKfl3qCzkHRcB8"
         }
       ],
       "services": {
