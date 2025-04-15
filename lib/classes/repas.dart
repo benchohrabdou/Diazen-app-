@@ -15,9 +15,29 @@ class Repas {
     required this.ingredients,
   });
 
-  void calcGlu() {}
+  void calcGlu() {
+    // Implementation of calcGlu method
+    // Example implementation:
+    double totalGlucides = 0;
+    for (var ingredient in ingredients) {
+      totalGlucides += ingredient.quantite100g * quantite / 100;
+    }
+    print('Total glucides: $totalGlucides');
+  }
 
   bool exist() {
+    // Implementation of exist method
     return true;
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'idRepas': idRepas,
+      'nomRepas': nomRepas,
+      'gluc100g': gluc100g,
+      'quantite': quantite,
+      'ingredients':
+          ingredients.map((ingredient) => ingredient.toJson()).toList(),
+    };
   }
 }

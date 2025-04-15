@@ -2,10 +2,10 @@ import 'personne.dart';
 
 class Utilisateur extends Personne {
   int diabType;
-  double _ratioInsulineGlucide;
-  double _sensitiviteInsuline;
-  double _poids;
-  double _taille;
+  final double _ratioInsulineGlucide;
+  final double _sensitiviteInsuline;
+  final double _poids;
+  final double _taille;
 
   Utilisateur({
     required super.id,
@@ -24,11 +24,32 @@ class Utilisateur extends Personne {
         _poids = poids,
         _taille = taille;
 
-  void demanderCalcul() {}
+  void demanderCalcul() {
+    // Implementation of demanderCalcul method
+  }
 
-  void saisirGlycemie() {}
+  void saisirGlycemie() {
+    // Implementation of saisirGlycemie method
+  }
 
-  void ajouterRepas() {}
+  void ajouterRepas() {
+    // Implementation of ajouterRepas method
+  }
 
-  void visionnerHist() {}
+  void visionnerHist() {
+    // Implementation of visionnerHist method
+  }
+
+  @override
+  Map<String, dynamic> toJson() {
+    final map = super.toJson();
+    map.addAll({
+      'diabType': diabType,
+      'ratioInsulineGlucide': _ratioInsulineGlucide,
+      'sensitiviteInsuline': _sensitiviteInsuline,
+      'poids': _poids,
+      'taille': _taille,
+    });
+    return map;
+  }
 }

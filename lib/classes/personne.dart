@@ -17,9 +17,26 @@ class Personne {
         _email = email,
         _tel = tel;
 
-  void sinscrire() {}
+  void sinscrire() {
+    // Implementation of sinscrire method
+  }
 
-  void seConnecter() {}
+  void seConnecter() {
+    // Implementation of seConnecter method
+  }
 
-  void gererCompte() {}
+  void gererCompte() {
+    // Implementation of gererCompte method
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'nom': nom,
+      'prenom': prenom,
+      'dateNaissance': _dateNaissance.toIso8601String(),
+      'email': _email,
+      'tel': _tel,
+    };
+  }
 }

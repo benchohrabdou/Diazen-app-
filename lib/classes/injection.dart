@@ -11,11 +11,27 @@ class Injection {
     required this.quantiteGlu,
   });
 
-  void calculerDose() {}
+  void calculerDose() {
+    // Implementation of calculerDose method
+  }
 
-  void couvre() {}
+  void couvre() {
+    // Implementation of couvre method
+  }
 
-  void reduit() {}
+  void reduit() {
+    // Implementation of reduit method
+  }
 
-  void injecte() {}
+  void injecte() {
+    // Implementation of injecte method
+  }
+
+  Map<String, dynamic> toJson(BuildContext context) {
+    return {
+      'tempsInject': tempsInject.format(context),
+      'glycemie': glycemie,
+      'quantiteGlu': quantiteGlu,
+    };
+  }
 }

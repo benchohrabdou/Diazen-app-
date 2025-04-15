@@ -9,7 +9,19 @@ class Activite {
     required this.typeAct,
   });
 
-  void calculerReduction() {}
+  void calculerReduction() {
+    // Implementation of calculerReduction method
+  }
 
-  void calTotal() {}
+  void calTotal() {
+    // Implementation of calTotal method
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'nom': nom,
+      'cal30mn': cal30mn,
+      'typeAct': typeAct,
+    };
+  }
 }

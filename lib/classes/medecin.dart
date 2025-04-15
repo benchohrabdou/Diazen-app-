@@ -4,16 +4,35 @@ class Medecin extends Personne {
   String _matriculePro;
 
   Medecin({
-    required super.id,
-    required super.nom,
-    required super.prenom,
-    required super.dateNaissance,
-    required super.email,
-    required super.tel,
+    required String id,
+    required String nom,
+    required String prenom,
+    required DateTime dateNaissance,
+    required String email,
+    required String tel,
     required String matriculePro,
-  }) : _matriculePro = matriculePro;
+  })  : _matriculePro = matriculePro,
+        super(
+          id: id,
+          nom: nom,
+          prenom: prenom,
+          dateNaissance: dateNaissance,
+          email: email,
+          tel: tel,
+        );
 
-  void gererFacteurs() {}
+  void gererFacteurs() {
+    // Implementation of gererFacteurs method
+  }
 
-  void consulterRapport() {}
+  void consulterRapport() {
+    // Implementation of consulterRapport method
+  }
+
+  @override
+  Map<String, dynamic> toJson() {
+    final map = super.toJson();
+    map['matriculePro'] = _matriculePro;
+    return map;
+  }
 }
