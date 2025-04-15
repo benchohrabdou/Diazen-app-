@@ -1,4 +1,4 @@
-import 'package:diazen/authentication/forgotpass_screen1.dart.dart';
+import 'package:diazen/authentication/forgotpass_screen1.dart';
 import 'package:diazen/authentication/signuppage.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -76,15 +76,14 @@ class _LoginpageState extends State<Loginpage> {
                       ),
                     ],
                   ),
-                Align(
-        alignment: Alignment.centerRight,
-        child: Image.asset(
-          'assets/images/loginpageimage.png',
-          fit: BoxFit.contain,
-          width: 190, // Adjust width if needed
-        ),
-      )
-      
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Image.asset(
+                      'assets/images/loginpageimage.png',
+                      fit: BoxFit.contain,
+                      width: 190, // Adjust width if needed
+                    ),
+                  )
                 ],
               ),
             ),
@@ -105,8 +104,8 @@ class _LoginpageState extends State<Loginpage> {
                   child: Form(
                       key: _formsigninkey,
                       child: Padding(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 30),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
@@ -128,7 +127,7 @@ class _LoginpageState extends State<Loginpage> {
                                     borderRadius: BorderRadius.circular(20),
                                   )),
                             ),
-                            const SizedBox(height:25),
+                            const SizedBox(height: 25),
                             TextFormField(
                               obscureText: true,
                               validator: (value) {
@@ -155,177 +154,189 @@ class _LoginpageState extends State<Loginpage> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 //Remember me
-                                Row(children: [
-                                  Checkbox( value: rememberPassword,
-                                onChanged: (bool? value) {
-                                  setState(() {
-                                    rememberPassword = value!;
-                                  });
-                                },
-                                activeColor:const Color(0xFF4A7BF7),),
-                                const Text(
-                                'Remember me',
-                                style: TextStyle(
-                                  color: Colors.grey,
+                                Row(
+                                  children: [
+                                    Checkbox(
+                                      value: rememberPassword,
+                                      onChanged: (bool? value) {
+                                        setState(() {
+                                          rememberPassword = value!;
+                                        });
+                                      },
+                                      activeColor: const Color(0xFF4A7BF7),
+                                    ),
+                                    const Text(
+                                      'Remember me',
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                                ],),
                                 //Fogotpassword
                                 GestureDetector(
                                   onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (e) => const ForgotpassScreen(),
-                                ),
-                              );
-                            },
-                            child: const Text(
-                              'Forget password?',
-                              style: TextStyle(
-                                fontFamily: 'SfProDisplay',
-                                fontWeight: FontWeight.bold,
-                                color:Colors.grey ,
-                              ),
-                            ),
-                          ),
-                                ],
-                            ),
-                            const SizedBox(height:25),
-                              ElevatedButton(
-                                onPressed: () {
-                                  if (_formsigninkey.currentState!.validate() &&
-                                      rememberPassword) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Processing Data'),
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (e) =>
+                                            const ForgotpassScreen(),
                                       ),
                                     );
-                                  } else if (!rememberPassword) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              'Please agree to the processing of personal data')),
-                                    );
-                                  }
-                                },
-                                style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF4A7BF7),
-                              foregroundColor: Colors.white,
-                              minimumSize: const Size(double.infinity, 50),
-                              shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
+                                  },
+                                  child: const Text(
+                                    'Forget password?',
+                                    style: TextStyle(
+                                      fontFamily: 'SfProDisplay',
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 25),
+                            ElevatedButton(
+                              onPressed: () {
+                                if (_formsigninkey.currentState!.validate() &&
+                                    rememberPassword) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Processing Data'),
+                                    ),
+                                  );
+                                } else if (!rememberPassword) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'Please agree to the processing of personal data')),
+                                  );
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF4A7BF7),
+                                foregroundColor: Colors.white,
+                                minimumSize: const Size(double.infinity, 50),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
                               ),
-                              ),
-                                child:  const Text('Sign in',style: TextStyle(
-                                  color:Colors.white,
+                              child: const Text(
+                                'Sign in',
+                                style: TextStyle(
+                                  color: Colors.white,
                                   fontFamily: 'SfProDisplay',
                                   fontWeight: FontWeight.bold,
-                                ),),
+                                ),
+                              ),
                             ),
                             const SizedBox(
                               height: 25.0,
                             ),
-                            const SizedBox(height:30),
-                        Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: Divider(
-                              thickness: 0.7,
-                              color: Colors.grey.withOpacity(0.5),
-                            ),
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(
-                              vertical: 0,
-                              horizontal: 10,
-                            ),
-                            child: Text(
-                              ' Or sign up with',
-                              style: TextStyle(
-                                fontFamily: 'SfProDisplay',
-                                color: Colors.black45,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Divider(
-                              thickness: 0.7,
-                              color: Colors.grey.withOpacity(0.5),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(
-                        height: 30.0,
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          ElevatedButton(
-                            onPressed: (){},
-                              style: ElevatedButton.styleFrom(
-                                shape: const CircleBorder(),
-                                padding: const EdgeInsets.all(10),
-                                backgroundColor: Colors.white, 
-                              ),
-                            child: 
-                              Image.asset('assets/images/googlelogo.png',
-                              height:30),
-                            ),
-                            const SizedBox(width:10),
-                            ElevatedButton(
-                              onPressed: (){},
-                              style:  ElevatedButton.styleFrom(
-                                shape: const CircleBorder(),
-                                padding: const EdgeInsets.all(10),
-                                backgroundColor: Colors.white,
-                              ),
-                              child: Image.asset('assets/images/facebooklogo.png',
-                              height:30)),
-                              const SizedBox(width: 10,),
-                              ElevatedButton(
-                              onPressed: (){},
-                              style:  ElevatedButton.styleFrom(
-                                shape: const CircleBorder(),
-                                padding: const EdgeInsets.all(10),
-                                backgroundColor: Colors.white,
-                              ),
-                              child: Image.asset('assets/images/appleicon.png',
-                              height:30)),
-                      ],
-                    ),
-                    const SizedBox(height:50),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text(
-                            'Don\'t have an account? ',
-                            style: TextStyle(
-                              color: Colors.black45,
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (e) => const Signuppage(),
+                            const SizedBox(height: 30),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: Divider(
+                                    thickness: 0.7,
+                                    color: Colors.grey.withOpacity(0.5),
+                                  ),
                                 ),
-                              );
-                            },
-                            child: const Text(
-                              'Sign up',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF4A7BF7),
-                              ),
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: 0,
+                                    horizontal: 10,
+                                  ),
+                                  child: Text(
+                                    ' Or sign up with',
+                                    style: TextStyle(
+                                      fontFamily: 'SfProDisplay',
+                                      color: Colors.black45,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Divider(
+                                    thickness: 0.7,
+                                    color: Colors.grey.withOpacity(0.5),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height:10),
+                            const SizedBox(
+                              height: 30.0,
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                ElevatedButton(
+                                  onPressed: () {},
+                                  style: ElevatedButton.styleFrom(
+                                    shape: const CircleBorder(),
+                                    padding: const EdgeInsets.all(10),
+                                    backgroundColor: Colors.white,
+                                  ),
+                                  child: Image.asset(
+                                      'assets/images/googlelogo.png',
+                                      height: 30),
+                                ),
+                                const SizedBox(width: 10),
+                                ElevatedButton(
+                                    onPressed: () {},
+                                    style: ElevatedButton.styleFrom(
+                                      shape: const CircleBorder(),
+                                      padding: const EdgeInsets.all(10),
+                                      backgroundColor: Colors.white,
+                                    ),
+                                    child: Image.asset(
+                                        'assets/images/facebooklogo.png',
+                                        height: 30)),
+                                const SizedBox(
+                                  width: 10,
+                                ),
+                                ElevatedButton(
+                                    onPressed: () {},
+                                    style: ElevatedButton.styleFrom(
+                                      shape: const CircleBorder(),
+                                      padding: const EdgeInsets.all(10),
+                                      backgroundColor: Colors.white,
+                                    ),
+                                    child: Image.asset(
+                                        'assets/images/appleicon.png',
+                                        height: 30)),
+                              ],
+                            ),
+                            const SizedBox(height: 50),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text(
+                                  'Don\'t have an account? ',
+                                  style: TextStyle(
+                                    color: Colors.black45,
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (e) => const Signuppage(),
+                                      ),
+                                    );
+                                  },
+                                  child: const Text(
+                                    'Sign up',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF4A7BF7),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
                           ],
                         ),
                       )),
