@@ -10,9 +10,23 @@ class ForgotpassScreen extends StatefulWidget {
 
 class _ForgotpassScreenState extends State<ForgotpassScreen> {
   final TextEditingController _emailController = TextEditingController();
+  bool _isTyping = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController.addListener(_onTextChanged);
+  }
+
+  void _onTextChanged() {
+    setState(() {
+      _isTyping = _emailController.text.isNotEmpty;
+    });
+  }
 
   @override
   void dispose() {
+      _emailController.removeListener(_onTextChanged);
     _emailController.dispose();
     super.dispose();
   }

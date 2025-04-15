@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:diazen/authentication/password_reset_succees_screen.dart';
 
 class VerificateemailScreen extends StatefulWidget {
   final String email;
@@ -34,7 +35,14 @@ class _VerificateemailScreenState extends State<VerificateemailScreen> {
       );
       return;
     }
-    // Ajoutez ici la logique de vérification
+    
+    // Navigation vers l'écran de succès
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>  PasswordResetSucceesScreen(),
+      ),
+    );
   }
 
   @override
