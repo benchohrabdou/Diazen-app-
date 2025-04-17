@@ -39,4 +39,15 @@ class Personne {
       'tel': _tel,
     };
   }
+
+  factory Personne.fromJson(Map<String, dynamic> json) {
+    return Personne(
+      id: json['id'],
+      nom: json['nom'],
+      prenom: json['prenom'],
+      dateNaissance: DateTime.parse(json['dateNaissance']),
+      email: json['email'],
+      tel: json['tel'],
+    );
+  }
 }

@@ -10,4 +10,10 @@ class Ingredient {
       'quantite100g': quantite100g,
     };
   }
+
+  factory Ingredient.fromJson(Map<String, dynamic> json) {
+    return Ingredient(
+      quantite100g: json['quantite100g'],
+    );
+  }
 }

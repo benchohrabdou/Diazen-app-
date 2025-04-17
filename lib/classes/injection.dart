@@ -34,4 +34,15 @@ class Injection {
       'quantiteGlu': quantiteGlu,
     };
   }
+
+  factory Injection.fromJson(Map<String, dynamic> json, BuildContext context) {
+    return Injection(
+      tempsInject: TimeOfDay(
+        hour: int.parse(json['tempsInject'].split(":")[0]),
+        minute: int.parse(json['tempsInject'].split(":")[1]),
+      ),
+      glycemie: json['glycemie'],
+      quantiteGlu: json['quantiteGlu'],
+    );
+  }
 }

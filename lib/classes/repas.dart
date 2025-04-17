@@ -40,4 +40,16 @@ class Repas {
           ingredients.map((ingredient) => ingredient.toJson()).toList(),
     };
   }
+
+  factory Repas.fromJson(Map<String, dynamic> json) {
+    return Repas(
+      idRepas: json['idRepas'],
+      nomRepas: json['nomRepas'],
+      gluc100g: json['gluc100g'],
+      quantite: json['quantite'],
+      ingredients: (json['ingredients'] as List)
+          .map((item) => Ingredient.fromJson(item))
+          .toList(),
+    );
+  }
 }
