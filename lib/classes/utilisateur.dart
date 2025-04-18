@@ -7,6 +7,8 @@ class Utilisateur extends Personne {
   double _poids;
   double _taille;
 
+  double glycemie = 0.0; // Attribute to store glycemia value
+
   Utilisateur({
     required super.id,
     required super.nom,
@@ -24,20 +26,27 @@ class Utilisateur extends Personne {
         _poids = poids,
         _taille = taille;
 
-  void demanderCalcul() {
-    // Implementation of demanderCalcul method
+  Map<String, dynamic> demanderCalcul({
+    required double glucides,
+    required int quantiteRepas,
+    required double caloriesBurned,
+    required double glycemieCible,
+  }) {
+    return {
+      'glycemie': glycemie,
+      'glucides': glucides,
+      'quantiteRepas': quantiteRepas,
+      'caloriesBurned': caloriesBurned,
+      'glycemieCible': glycemieCible,
+      'ratioInsulineGlucide': _ratioInsulineGlucide,
+      'sensitiviteInsuline': _sensitiviteInsuline,
+    };
   }
 
-  void saisirGlycemie() {
-    // Implementation of saisirGlycemie method
-  }
-
-  void ajouterRepas() {
-    // Implementation of ajouterRepas method
-  }
-
-  void visionnerHist() {
-    // Implementation of visionnerHist method
+  double saisirGlycemie(double newGlycemie) {
+    glycemie = newGlycemie;
+    print('Glycemie updated to $glycemie mg/dL');
+    return glycemie;
   }
 
   @override
