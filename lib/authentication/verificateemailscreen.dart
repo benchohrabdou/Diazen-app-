@@ -5,7 +5,7 @@ class VerificateemailScreen extends StatefulWidget {
   final String email;
 
   const VerificateemailScreen({
-    Key? key,
+    super.key,
     required this.email,
   }) : super(key: key);
 
