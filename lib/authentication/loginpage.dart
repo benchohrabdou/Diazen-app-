@@ -3,6 +3,8 @@ import 'package:diazen/authentication/signuppage.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:diazen/screens/home_screen.dart';
+import 'package:diazen/screens/mainscreen.dart';
 
 class Loginpage extends StatefulWidget {
   const Loginpage({super.key});
@@ -18,6 +20,12 @@ class _LoginpageState extends State<Loginpage> {
   TextEditingController emailController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
   bool rememberPassword = false;
+  bool isObscure = true;
+  Color emailBorderColor = Colors.grey;
+  Color passwordBorderColor = Colors.grey;
+  double emailBorderWidth = 1.0;
+  double passwordBorderWidth = 1.0;
+
 
   @override
   void initState() {
@@ -115,7 +123,7 @@ class _LoginpageState extends State<Loginpage> {
                     child: Image.asset(
                       'assets/images/loginpageimage.png',
                       fit: BoxFit.contain,
-                      width: 190, // Adjust width if needed
+                      width: 190,
                     ),
                   )
                 ],
@@ -123,7 +131,7 @@ class _LoginpageState extends State<Loginpage> {
             ),
           ),
           const SizedBox(
-            height: 25,
+            height: 20,
           ),
           Expanded(
               flex: 5,
@@ -144,45 +152,108 @@ class _LoginpageState extends State<Loginpage> {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             TextFormField(
-                              controller: emailController,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'please enter your email';
-                                }
-                                return null;
-                              },
-                              decoration: InputDecoration(
-                                  label: const Text('email'),
-                                  hintText: 'Enter your email',
-                                  hintStyle: const TextStyle(
-                                    backgroundColor:
-                                        Color.fromARGB(255, 187, 186, 186),
-                                  ),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  )),
-                            ),
-                            const SizedBox(height: 25),
+                  controller: emailController,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'please enter your email';
+                    }
+                    return null;
+                  },
+                  onTap: () {
+                    setState(() {
+                      emailBorderColor = const Color(0xFF4A7BF7);
+                      emailBorderWidth = 2.0;
+                      passwordBorderColor = Colors.grey;
+                      passwordBorderWidth = 1.0;
+                    });
+                  },
+                  onFieldSubmitted: (_) {
+                    setState(() {
+                      emailBorderColor = Colors.grey;
+                      emailBorderWidth = 1.0;
+                    });
+                  },
+                  decoration: InputDecoration(
+                    label: const Text('email'),
+                    hintText: 'Enter your email',
+                    hintStyle: const TextStyle(),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: BorderSide(
+                        color: emailBorderColor,
+                        width: emailBorderWidth,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF4A7BF7),
+                        width: 2.0,
+                      ),
+                    ),
+                  ),
+                ),
+                            const SizedBox(height: 20),
                             TextFormField(
-                              controller: passwordController,
-                              obscureText: true,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'please enter your password';
-                                }
-                                return null;
-                              },
-                              decoration: InputDecoration(
-                                  label: const Text('password'),
-                                  hintText: 'Enter your password',
-                                  hintStyle: const TextStyle(
-                                    backgroundColor:
-                                        Color.fromARGB(255, 187, 186, 186),
-                                  ),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  )),
-                            ),
+                  controller: passwordController,
+                  obscureText: isObscure,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'please enter your password';
+                    }
+                    return null;
+                  },
+                  onTap: () {
+                    setState(() {
+                      passwordBorderColor = const Color(0xFF4A7BF7);
+                      passwordBorderWidth = 2.0;
+                      emailBorderColor = Colors.grey;
+                      emailBorderWidth = 1.0;
+                    });
+                  },
+                  onFieldSubmitted: (_) {
+                    setState(() {
+                      passwordBorderColor = Colors.grey;
+                      passwordBorderWidth = 1.0;
+                    });
+                  },
+                  decoration: InputDecoration(
+                    label: const Text('password'),
+                    hintText: 'Enter your password',
+                    hintStyle: const TextStyle(),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: BorderSide(
+                        color: passwordBorderColor,
+                        width: passwordBorderWidth,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF4A7BF7),
+                        width: 2.0,
+                      ),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        isObscure ? Icons.visibility_off : Icons.visibility,
+                        color: Colors.grey,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          isObscure = !isObscure;
+                        });
+                      },
+                    ),
+                  ),
+                ),
                             const SizedBox(
                               height: 10.0,
                             ),
@@ -204,6 +275,7 @@ class _LoginpageState extends State<Loginpage> {
                                     const Text(
                                       'Remember me',
                                       style: TextStyle(
+                                        fontFamily: 'SfProDisplay',
                                         color: Colors.grey,
                                       ),
                                     ),
@@ -237,6 +309,10 @@ class _LoginpageState extends State<Loginpage> {
                                 if (_formsigninkey.currentState!.validate()) {
                                   _signIn();
                                 }
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const MainScreen()),
+                                );
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF4A7BF7),
@@ -258,7 +334,6 @@ class _LoginpageState extends State<Loginpage> {
                             const SizedBox(
                               height: 25.0,
                             ),
-                            const SizedBox(height: 30),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -332,7 +407,7 @@ class _LoginpageState extends State<Loginpage> {
                                         height: 30)),
                               ],
                             ),
-                            const SizedBox(height: 50),
+                            const SizedBox(height: 30),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -354,6 +429,7 @@ class _LoginpageState extends State<Loginpage> {
                                   child: const Text(
                                     'Sign up',
                                     style: TextStyle(
+                                      fontFamily: 'SfProDisplay',
                                       fontWeight: FontWeight.bold,
                                       color: Color(0xFF4A7BF7),
                                     ),
@@ -361,7 +437,6 @@ class _LoginpageState extends State<Loginpage> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 10),
                           ],
                         ),
                       )),

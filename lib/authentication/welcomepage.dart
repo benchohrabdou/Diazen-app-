@@ -69,7 +69,7 @@ class WelcomePage extends StatelessWidget {
                     ),
                     child: const Text("Login",
                     style: TextStyle(
-                      fontFamily: 'SfProDiplay',
+                      fontFamily: 'SfProDisplay',
                       fontWeight: FontWeight.bold,
                     ),),
                   ),
@@ -93,7 +93,7 @@ class WelcomePage extends StatelessWidget {
                     ),
                     child: const Text("Sign up",
                     style: TextStyle(
-                      fontFamily: 'SfProDiplay',
+                      fontFamily: 'SfProDisplay',
                       fontWeight: FontWeight.bold,
                     ),
                     ),

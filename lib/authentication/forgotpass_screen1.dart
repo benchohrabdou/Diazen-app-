@@ -12,6 +12,9 @@ class ForgotpassScreen extends StatefulWidget {
 class _ForgotpassScreenState extends State<ForgotpassScreen> {
   final TextEditingController _emailController = TextEditingController();
   bool _isTyping = false;
+  Color _borderColor = Colors.transparent;
+  double _borderWidth = 0;
+  double _buttonScale = 1.0;
 
   @override
   void initState() {
@@ -33,6 +36,14 @@ class _ForgotpassScreenState extends State<ForgotpassScreen> {
   }
 
   void _onResetPressed() async {
+    setState(() {
+      _buttonScale = 0.95;
+    });
+    await Future.delayed(const Duration(milliseconds: 100));
+    setState(() {
+      _buttonScale = 1.0;
+    });
+
     final email = _emailController.text.trim();
     if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -100,42 +111,68 @@ class _ForgotpassScreenState extends State<ForgotpassScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            TextField(
-              controller: _emailController,
-              decoration: InputDecoration(
-                hintText: 'Enter your email',
-                hintStyle: const TextStyle(
-                  color: Colors.grey,
-                  fontFamily: 'SfProDisplay',
-                ),
-                filled: true,
-                fillColor: const Color(0xFFF2F2F2),
-                border: OutlineInputBorder(
+            Focus(
+              onFocusChange: (hasFocus) {
+                setState(() {
+                  _borderColor = hasFocus ? const Color(0xFF4A7BF7) : Colors.transparent;
+                  _borderWidth = hasFocus ? 2 : 0;
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+                  border: Border.all(
+                    color: _borderColor,
+                    width: _borderWidth,
+                  ),
                 ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                child: TextField(
+                  controller: _emailController,
+                  decoration: InputDecoration(
+                    hintText: 'Enter your email',
+                    hintStyle: const TextStyle(
+                      color: Colors.grey,
+                      fontFamily: 'SfProDisplay',
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFFF2F2F2),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                ),
               ),
-              keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _onResetPressed,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF92A3FD),
-                minimumSize: const Size.fromHeight(56),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text(
-                'Reset Password',
-                style: TextStyle(
-                  fontFamily: 'SfProDisplay',
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+            AnimatedScale(
+              scale: _buttonScale,
+              duration: const Duration(milliseconds: 100),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                child: ElevatedButton(
+                  onPressed: _onResetPressed,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _isTyping ? const Color(0xFF4A7BF7) : const Color(0xFF92A3FD),
+                    minimumSize: const Size.fromHeight(56),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: _isTyping ? 4 : 2,
+                  ),
+                  child: const Text(
+                    'Reset Password',
+                    style: TextStyle(
+                      fontFamily: 'SfProDisplay',
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ),
             ),

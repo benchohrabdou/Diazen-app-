@@ -7,7 +7,7 @@ class VerificateemailScreen extends StatefulWidget {
   const VerificateemailScreen({
     super.key,
     required this.email,
-  }) : super(key: key);
+  });
 
   @override
   State<VerificateemailScreen> createState() => _VerificateemailScreenState();
@@ -18,10 +18,28 @@ class _VerificateemailScreenState extends State<VerificateemailScreen> {
     5,
     (index) => TextEditingController(),
   );
+  
+  bool _isTyping = false;
+  double _buttonScale = 1.0;
+
+  @override
+  void initState() {
+    super.initState();
+    for (var controller in _controllers) {
+      controller.addListener(_checkTyping);
+    }
+  }
+
+  void _checkTyping() {
+    setState(() {
+      _isTyping = _controllers.any((controller) => controller.text.isNotEmpty);
+    });
+  }
 
   @override
   void dispose() {
     for (var controller in _controllers) {
+      controller.removeListener(_checkTyping);
       controller.dispose();
     }
     super.dispose();
@@ -36,11 +54,10 @@ class _VerificateemailScreenState extends State<VerificateemailScreen> {
       return;
     }
 
-    // Navigation to the success screen
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (context) => PasswordResetSucceesScreen(),
+        builder: (context) => const PasswordResetSucceesScreen(),
       ),
     );
   }
@@ -99,59 +116,73 @@ class _VerificateemailScreenState extends State<VerificateemailScreen> {
                   (index) => SizedBox(
                     width: 55,
                     height: 55,
-                    child: TextField(
-                      controller: _controllers[index],
-                      textAlign: TextAlign.center,
-                      keyboardType: TextInputType.number,
-                      maxLength: 1,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'SfProDisplay',
-                      ),
-                      decoration: InputDecoration(
-                        counterText: '',
-                        filled: true,
-                        fillColor: const Color(0xFFF7F8F8),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide.none,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      child: TextField(
+                        controller: _controllers[index],
+                        textAlign: TextAlign.center,
+                        keyboardType: TextInputType.number,
+                        maxLength: 1,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'SfProDisplay',
                         ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(
-                              color: Color(0xFF92A3FD), width: 1),
+                        decoration: InputDecoration(
+                          counterText: '',
+                          filled: true,
+                          fillColor: const Color(0xFFF7F8F8),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF4A7BF7),
+                              width: 2,
+                            ),
+                          ),
                         ),
+                        onChanged: (value) {
+                          if (value.isNotEmpty && index < 4) {
+                            FocusScope.of(context).nextFocus();
+                          } else if (value.isEmpty && index > 0) {
+                            FocusScope.of(context).previousFocus();
+                          }
+                        },
                       ),
-                      onChanged: (value) {
-                        if (value.isNotEmpty && index < 4) {
-                          FocusScope.of(context).nextFocus();
-                        } else if (value.isEmpty && index > 0) {
-                          FocusScope.of(context).previousFocus();
-                        }
-                      },
                     ),
                   ),
                 ),
               ),
               const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: _onVerifyPressed,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF92A3FD),
-                  minimumSize: const Size.fromHeight(55),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Verify code',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    fontFamily: 'SfProDisplay',
+              AnimatedScale(
+                scale: _buttonScale,
+                duration: const Duration(milliseconds: 100),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  child: ElevatedButton(
+                    onPressed: _onVerifyPressed,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _isTyping 
+                        ? const Color(0xFF4A7BF7)
+                        : const Color(0xFF92A3FD),
+                      minimumSize: const Size.fromHeight(56),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      'Verify code',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        fontFamily: 'SfProDisplay',
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -175,7 +206,7 @@ class _VerificateemailScreenState extends State<VerificateemailScreen> {
                       child: const Text(
                         'Resend email',
                         style: TextStyle(
-                          color: Color(0xFF92A3FD),
+                          color: Color(0xFF4A7BF7),
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
                           fontFamily: 'SfProDisplay',

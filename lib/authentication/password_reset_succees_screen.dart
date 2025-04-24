@@ -52,10 +52,10 @@ class _PasswordResetSucceesScreenState extends State<PasswordResetSucceesScreen>
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF92A3FD),
-                  minimumSize: const Size.fromHeight(50),
+                  backgroundColor: const Color(0xFF4A7BF7),
+                  minimumSize: const Size.fromHeight(56),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(99),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   elevation: 0,
                 ),
