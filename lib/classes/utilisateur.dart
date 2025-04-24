@@ -2,10 +2,12 @@ import 'personne.dart';
 
 class Utilisateur extends Personne {
   int diabType;
-  final double _ratioInsulineGlucide;
-  final double _sensitiviteInsuline;
-  final double _poids;
-  final double _taille;
+  double _ratioInsulineGlucide;
+  double _sensitiviteInsuline;
+  double _poids;
+  double _taille;
+
+  double glycemie = 0.0; // Attribute to store glycemia value
 
   Utilisateur({
     required super.id,
@@ -24,20 +26,27 @@ class Utilisateur extends Personne {
         _poids = poids,
         _taille = taille;
 
-  void demanderCalcul() {
-    // Implementation of demanderCalcul method
+  Map<String, dynamic> demanderCalcul({
+    required double glucides,
+    required int quantiteRepas,
+    required double caloriesBurned,
+    required double glycemieCible,
+  }) {
+    return {
+      'glycemie': glycemie,
+      'glucides': glucides,
+      'quantiteRepas': quantiteRepas,
+      'caloriesBurned': caloriesBurned,
+      'glycemieCible': glycemieCible,
+      'ratioInsulineGlucide': _ratioInsulineGlucide,
+      'sensitiviteInsuline': _sensitiviteInsuline,
+    };
   }
 
-  void saisirGlycemie() {
-    // Implementation of saisirGlycemie method
-  }
-
-  void ajouterRepas() {
-    // Implementation of ajouterRepas method
-  }
-
-  void visionnerHist() {
-    // Implementation of visionnerHist method
+  double saisirGlycemie(double newGlycemie) {
+    glycemie = newGlycemie;
+    print('Glycemie updated to $glycemie mg/dL');
+    return glycemie;
   }
 
   @override
@@ -51,5 +60,21 @@ class Utilisateur extends Personne {
       'taille': _taille,
     });
     return map;
+  }
+
+  factory Utilisateur.fromJson(Map<String, dynamic> json) {
+    return Utilisateur(
+      id: json['id'],
+      nom: json['nom'],
+      prenom: json['prenom'],
+      dateNaissance: DateTime.parse(json['dateNaissance']),
+      email: json['email'],
+      tel: json['tel'],
+      diabType: json['diabType'],
+      ratioInsulineGlucide: json['ratioInsulineGlucide'],
+      sensitiviteInsuline: json['sensitiviteInsuline'],
+      poids: json['poids'],
+      taille: json['taille'],
+    );
   }
 }

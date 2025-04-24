@@ -1,4 +1,5 @@
 {
+<<<<<<< HEAD
   "C_Cpp_Runner.cCompilerPath": "gcc",
   "C_Cpp_Runner.cppCompilerPath": "g++",
   "C_Cpp_Runner.debuggerPath": "gdb",
@@ -56,4 +57,7 @@
   "C_Cpp_Runner.showCompilationTime": false,
   "C_Cpp_Runner.useLinkTimeOptimization": false,
   "C_Cpp_Runner.msvcSecureNoWarnings": false
+=======
+    "CodeGPT.apiKey": "CodeGPT Plus Beta"
+>>>>>>> fcb8da0b14e3b5aedc56d2f6716a23387651528f
 }
