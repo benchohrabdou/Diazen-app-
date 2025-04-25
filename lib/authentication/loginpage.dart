@@ -26,14 +26,14 @@ class _LoginpageState extends State<Loginpage> {
   double emailBorderWidth = 1.0;
   double passwordBorderWidth = 1.0;
 
-
   @override
   void initState() {
     super.initState();
     _loadUserEmailPassword();
+    _checkIfUserIsLoggedIn();
   }
 
-//Load user email and password from shared preferences
+  //Load user email and password from shared preferences
   void _loadUserEmailPassword() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -59,6 +59,18 @@ class _LoginpageState extends State<Loginpage> {
     }
   }
 
+  // Check if user is logged in
+  void _checkIfUserIsLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isLoggedIn = prefs.getBool('isLoggedIn');
+    if (isLoggedIn != null && isLoggedIn) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainScreen()),
+      );
+    }
+  }
+
   void _signIn() async {
     if (_formsigninkey.currentState!.validate()) {
       try {
@@ -68,7 +80,16 @@ class _LoginpageState extends State<Loginpage> {
         );
         if (userCredential.user!.emailVerified) {
           _saveUserEmailPassword();
+
+          // Mark user as logged in
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('isLoggedIn', true);
+
           // Navigate to the main app screen
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const MainScreen()),
+          );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -152,108 +173,110 @@ class _LoginpageState extends State<Loginpage> {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             TextFormField(
-                  controller: emailController,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'please enter your email';
-                    }
-                    return null;
-                  },
-                  onTap: () {
-                    setState(() {
-                      emailBorderColor = const Color(0xFF4A7BF7);
-                      emailBorderWidth = 2.0;
-                      passwordBorderColor = Colors.grey;
-                      passwordBorderWidth = 1.0;
-                    });
-                  },
-                  onFieldSubmitted: (_) {
-                    setState(() {
-                      emailBorderColor = Colors.grey;
-                      emailBorderWidth = 1.0;
-                    });
-                  },
-                  decoration: InputDecoration(
-                    label: const Text('email'),
-                    hintText: 'Enter your email',
-                    hintStyle: const TextStyle(),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: BorderSide(
-                        color: emailBorderColor,
-                        width: emailBorderWidth,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: const BorderSide(
-                        color: Color(0xFF4A7BF7),
-                        width: 2.0,
-                      ),
-                    ),
-                  ),
-                ),
+                              controller: emailController,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'please enter your email';
+                                }
+                                return null;
+                              },
+                              onTap: () {
+                                setState(() {
+                                  emailBorderColor = const Color(0xFF4A7BF7);
+                                  emailBorderWidth = 2.0;
+                                  passwordBorderColor = Colors.grey;
+                                  passwordBorderWidth = 1.0;
+                                });
+                              },
+                              onFieldSubmitted: (_) {
+                                setState(() {
+                                  emailBorderColor = Colors.grey;
+                                  emailBorderWidth = 1.0;
+                                });
+                              },
+                              decoration: InputDecoration(
+                                label: const Text('email'),
+                                hintText: 'Enter your email',
+                                hintStyle: const TextStyle(),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                  borderSide: BorderSide(
+                                    color: emailBorderColor,
+                                    width: emailBorderWidth,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF4A7BF7),
+                                    width: 2.0,
+                                  ),
+                                ),
+                              ),
+                            ),
                             const SizedBox(height: 20),
                             TextFormField(
-                  controller: passwordController,
-                  obscureText: isObscure,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'please enter your password';
-                    }
-                    return null;
-                  },
-                  onTap: () {
-                    setState(() {
-                      passwordBorderColor = const Color(0xFF4A7BF7);
-                      passwordBorderWidth = 2.0;
-                      emailBorderColor = Colors.grey;
-                      emailBorderWidth = 1.0;
-                    });
-                  },
-                  onFieldSubmitted: (_) {
-                    setState(() {
-                      passwordBorderColor = Colors.grey;
-                      passwordBorderWidth = 1.0;
-                    });
-                  },
-                  decoration: InputDecoration(
-                    label: const Text('password'),
-                    hintText: 'Enter your password',
-                    hintStyle: const TextStyle(),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: BorderSide(
-                        color: passwordBorderColor,
-                        width: passwordBorderWidth,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: const BorderSide(
-                        color: Color(0xFF4A7BF7),
-                        width: 2.0,
-                      ),
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        isObscure ? Icons.visibility_off : Icons.visibility,
-                        color: Colors.grey,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          isObscure = !isObscure;
-                        });
-                      },
-                    ),
-                  ),
-                ),
+                              controller: passwordController,
+                              obscureText: isObscure,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'please enter your password';
+                                }
+                                return null;
+                              },
+                              onTap: () {
+                                setState(() {
+                                  passwordBorderColor = const Color(0xFF4A7BF7);
+                                  passwordBorderWidth = 2.0;
+                                  emailBorderColor = Colors.grey;
+                                  emailBorderWidth = 1.0;
+                                });
+                              },
+                              onFieldSubmitted: (_) {
+                                setState(() {
+                                  passwordBorderColor = Colors.grey;
+                                  passwordBorderWidth = 1.0;
+                                });
+                              },
+                              decoration: InputDecoration(
+                                label: const Text('password'),
+                                hintText: 'Enter your password',
+                                hintStyle: const TextStyle(),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                  borderSide: BorderSide(
+                                    color: passwordBorderColor,
+                                    width: passwordBorderWidth,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF4A7BF7),
+                                    width: 2.0,
+                                  ),
+                                ),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    isObscure
+                                        ? Icons.visibility_off
+                                        : Icons.visibility,
+                                    color: Colors.grey,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      isObscure = !isObscure;
+                                    });
+                                  },
+                                ),
+                              ),
+                            ),
                             const SizedBox(
                               height: 10.0,
                             ),
@@ -305,15 +328,7 @@ class _LoginpageState extends State<Loginpage> {
                             ),
                             const SizedBox(height: 25),
                             ElevatedButton(
-                              onPressed: () {
-                                if (_formsigninkey.currentState!.validate()) {
-                                  _signIn();
-                                }
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => const MainScreen()),
-                                );
-                              },
+                              onPressed: _signIn,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF4A7BF7),
                                 foregroundColor: Colors.white,
