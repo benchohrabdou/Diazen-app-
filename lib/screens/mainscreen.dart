@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'bottom_nav_bar.dart'; 
 import 'home_screen.dart';
-import 'add_meal_screen.dart';
+import 'add_plate_screen.dart';
 import 'activity_screen.dart';
 
 import 'history_sreen.dart';
@@ -18,7 +18,7 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> _screens = [
     const HomeScreen(),
-    const AddMealScreen(),
+    AddPlateScreen(),
     const ActivityScreen(),
     const HistorySreen(),
   ];

@@ -3,7 +3,7 @@ import 'package:diazen/screens/log_glucose_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:diazen/screens/settings_screen.dart';
 import 'package:diazen/screens/custom_card.dart';
-import 'add_meal_screen.dart';
+import 'add_plate_screen.dart';
 import 'history_sreen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -181,7 +181,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const AddMealScreen(),
+                            builder: (context) =>  AddPlateScreen(),
                           ),
                         );
                       },
