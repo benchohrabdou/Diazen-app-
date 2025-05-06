@@ -1,30 +1,46 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+import 'package:diazen/authentication/loginpage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:diazen/main.dart';
+// Importez la classe Loginpage
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+  testWidgets('Login page test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(const MaterialApp(home: Loginpage()));
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Verify that the login page is displayed.
+    expect(find.text('Welcome back'), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+    // Enter a valid email and password.
+    await tester.enterText(find.byType(TextField).first, 'test@example.com');
+    await tester.enterText(find.byType(TextField).last, 'password123');
+
+    // Tap the 'Sign in' button and trigger a frame.
+    await tester.tap(find.text('Sign in'));
     await tester.pump();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Verify that the home page is displayed.
+    expect(find.text('Home'), findsOneWidget);
+  });
+
+  testWidgets('Login page test with invalid credentials',
+      (WidgetTester tester) async {
+    // Build our app and trigger a frame.
+    await tester.pumpWidget(const MaterialApp(home: Loginpage()));
+
+    // Verify that the login page is displayed.
+    expect(find.text('Welcome back'), findsOneWidget);
+
+    // Enter an invalid email and password.
+    await tester.enterText(find.byType(TextField).first, 'invalid@example.com');
+    await tester.enterText(find.byType(TextField).last, 'wrongpassword');
+
+    // Tap the 'Sign in' button and trigger a frame.
+    await tester.tap(find.text('Sign in'));
+    await tester.pump();
+
+    // Verify that an error message is displayed.
+    expect(find.text('Invalid email or password'), findsOneWidget);
   });
 }

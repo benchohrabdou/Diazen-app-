@@ -49,8 +49,8 @@ class FirestoreService {
   }
 
   // Add a meal
-  Future<void> addMeal(
-      String idRepas, String nomRepas, List<Map<String, dynamic>> ingredients) {
+  Future<void> addMeal(String idRepas, String nomRepas,
+      List<Map<String, dynamic>> ingredients, String userId) {
     double totalGlucides = 0.0;
     for (var ingredient in ingredients) {
       totalGlucides += ingredient['glucidesPer100g'];

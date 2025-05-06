@@ -3,6 +3,9 @@ import 'package:diazen/screens/log_glucose_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:diazen/screens/settings_screen.dart';
 import 'package:diazen/screens/custom_card.dart';
+import 'package:diazen/classes/firestore_ops.dart';
+import 'package:diazen/classes/utilisateur.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'add_plate_screen.dart';
 import 'history_sreen.dart';
 
@@ -15,6 +18,63 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+  final FirestoreService _firestoreService = FirestoreService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  String _userName = '';
+  bool _isLoading = true;
+  String _errorMessage = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      // Get current user ID
+      final User? currentUser = _auth.currentUser;
+
+      if (currentUser != null) {
+        // Fetch user document from Firestore
+        final userDoc =
+            await _firestoreService.getDocument('users', currentUser.uid);
+
+        if (userDoc.exists) {
+          // Extract user data
+          final userData = userDoc.data() as Map<String, dynamic>;
+
+          setState(() {
+            // Get the user's first name (prenom)
+            _userName = userData['prenom'] ?? '';
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _errorMessage = 'User data not found';
+            _isLoading = false;
+          });
+        }
+      } else {
+        setState(() {
+          _errorMessage = 'No user logged in';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error loading user data: $e';
+        _isLoading = false;
+      });
+      print('Error loading user data: $e');
+    }
+  }
 
   void _onTabChange(int index) {
     setState(() {
@@ -38,25 +98,36 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Column(
+                    Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           "Hello,",
                           style: TextStyle(
                               fontFamily: 'SfProDisplay',
                               fontSize: 20,
                               fontWeight: FontWeight.bold),
                         ),
-                        SizedBox(height: 4),
-                        Text(
-                          "User's name",
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'SfProDisplay',
-                              color: Color(0xFF4A7BF7),
-                              fontSize: 24),
-                        ),
+                        const SizedBox(height: 4),
+                        _isLoading
+                            ? const SizedBox(
+                                height: 24,
+                                width: 120,
+                                child: LinearProgressIndicator(
+                                  backgroundColor: Colors.grey,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Color(0xFF4A7BF7),
+                                  ),
+                                ),
+                              )
+                            : Text(
+                                _userName.isEmpty ? "User" : _userName,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontFamily: 'SfProDisplay',
+                                    color: Color(0xFF4A7BF7),
+                                    fontSize: 24),
+                              ),
                       ],
                     ),
                     IconButton(
@@ -75,6 +146,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
+
+              // Rest of your existing code remains the same
               Padding(
                 padding: const EdgeInsets.all(15.0),
                 child: Column(
@@ -181,7 +254,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) =>  AddPlateScreen(),
+                            builder: (context) => AddPlateScreen(),
                           ),
                         );
                       },

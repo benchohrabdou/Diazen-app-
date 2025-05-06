@@ -70,7 +70,7 @@ class TesterPage extends StatelessWidget {
                   {'name': 'Chicken', 'glucidesPer100g': 0.0},
                   {'name': 'Broccoli', 'glucidesPer100g': 7.0},
                 ];
-                await _firestoreService.addMeal('meal1', 'Lunch', ingredients);
+                // await _firestoreService.addMeal('meal1', 'Lunch', ingredients);
                 ScaffoldMessenger.of(context)
                     .showSnackBar(const SnackBar(content: Text('Meal added')));
               },
