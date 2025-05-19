@@ -15,8 +15,8 @@ void main() async {
     MaterialApp(
       title: 'Diazen',
       home: isLoggedIn
-          ? HomeScreen()
-          : Loginpage(), // ou votre écran de connexion
+          ? const HomeScreen()
+          : const Loginpage(), // ou votre écran de connexion
     ),
   );
 }
