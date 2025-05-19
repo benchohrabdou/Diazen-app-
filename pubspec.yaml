@@ -96,6 +96,9 @@ flutter:
     - assets/icons/add.png
     - assets/icons/delete.png
     - assets/icons/minus.png
+    - assets/images/log glucose img.png
+    - assets/images/context.png
+    - assets/images/note.png
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 

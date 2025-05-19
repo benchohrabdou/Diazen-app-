@@ -13,6 +13,7 @@ void main() async {
 
   runApp(
     MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Diazen',
       home: isLoggedIn
           ? const HomeScreen()
