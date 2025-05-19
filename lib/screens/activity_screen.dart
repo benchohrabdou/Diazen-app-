@@ -259,8 +259,6 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
 
   @override
   Widget build(BuildContext context) {
-    double caloriesPerMinute = widget.activity.cal30mn / 30;
-
     return Container(
       padding: const EdgeInsets.all(24),
       child: Column(
