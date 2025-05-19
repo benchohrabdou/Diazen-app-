@@ -1,13 +1,12 @@
+import 'package:flutter/material.dart';
 import 'package:diazen/screens/calculate_dose_screen.dart';
 import 'package:diazen/screens/log_glucose_screen.dart';
-import 'package:flutter/material.dart';
 import 'package:diazen/screens/settings_screen.dart';
 import 'package:diazen/screens/custom_card.dart';
+import 'package:diazen/screens/add_plate_screen.dart';
+import 'package:diazen/screens/history_sreen.dart';
 import 'package:diazen/classes/firestore_ops.dart';
-import 'package:diazen/classes/utilisateur.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'add_plate_screen.dart';
-import 'history_sreen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,7 +16,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _currentIndex = 0;
   final FirestoreService _firestoreService = FirestoreService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
@@ -38,20 +36,12 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      // Get current user ID
       final User? currentUser = _auth.currentUser;
-
       if (currentUser != null) {
-        // Fetch user document from Firestore
-        final userDoc =
-            await _firestoreService.getDocument('users', currentUser.uid);
-
+        final userDoc = await _firestoreService.getDocument('users', currentUser.uid);
         if (userDoc.exists) {
-          // Extract user data
           final userData = userDoc.data() as Map<String, dynamic>;
-
           setState(() {
-            // Get the user's first name (prenom)
             _userName = userData['prenom'] ?? '';
             _isLoading = false;
           });
@@ -72,14 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _errorMessage = 'Error loading user data: $e';
         _isLoading = false;
       });
-      print('Error loading user data: $e');
     }
-  }
-
-  void _onTabChange(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
   }
 
   @override
@@ -138,8 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                              builder: (context) => const SettingsScreen()),
+                          MaterialPageRoute(builder: (context) => const SettingsScreen()),
                         );
                       },
                     ),
@@ -147,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              // Rest of your existing code remains the same
+              // Last operations container
               Padding(
                 padding: const EdgeInsets.all(15.0),
                 child: Column(
@@ -158,10 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(20),
                         gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFF4A7BF7),
-                            Colors.white,
-                          ],
+                          colors: [Color(0xFF4A7BF7), Colors.white],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
@@ -219,7 +198,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
+
               const SizedBox(height: 16),
+
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 15.0),
                 child: Wrap(
@@ -231,9 +212,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => const CalculateDoseScreen(),
-                          ),
+                          MaterialPageRoute(builder: (context) => const CalculateDoseScreen()),
                         );
                       },
                     ),
@@ -242,9 +221,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => const LogGlucoseScreen(),
-                          ),
+                          MaterialPageRoute(builder: (context) => const LogGlucoseScreen()),
                         );
                       },
                     ),
@@ -253,9 +230,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => AddPlateScreen(),
-                          ),
+                          MaterialPageRoute(builder: (context) => AddPlateScreen()),
                         );
                       },
                     ),
@@ -264,18 +239,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => const HistorySreen(),
-                          ),
+                          MaterialPageRoute(builder: (context) => const HistorySreen()),
                         );
                       },
                     ),
                   ],
                 ),
               ),
+
               const SizedBox(height: 30),
 
-              // AI Assistant Card
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Container(
@@ -355,11 +328,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     return Column(
       children: [
-        Icon(
-          icon,
-          color: Colors.white,
-          size: 30,
-        ),
+        Icon(icon, color: Colors.white, size: 30),
         const SizedBox(height: 8),
         Text(
           label,
