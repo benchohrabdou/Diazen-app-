@@ -1,6 +1,5 @@
 import 'package:diazen/authentication/auth_state_service.dart';
 import 'package:diazen/authentication/loginpage.dart';
-import 'package:diazen/screens/home_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:diazen/screens/mainscreen.dart';
@@ -17,8 +16,8 @@ void main() async {
       debugShowCheckedModeBanner: false,
       title: 'Diazen',
       home: isLoggedIn
-          ? HomeScreen()
-          : Loginpage(), // ou votre écran de connexion
+          ? const MainScreen() // Changed from HomeScreen to MainScreen
+          : const Loginpage(),
     ),
   );
 }

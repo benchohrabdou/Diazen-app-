@@ -7,6 +7,7 @@ import 'package:diazen/screens/add_plate_screen.dart';
 import 'package:diazen/screens/history_sreen.dart';
 import 'package:diazen/classes/firestore_ops.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -36,13 +37,31 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
+      // Check shared preferences first for cached name
+      final prefs = await SharedPreferences.getInstance();
+      final cachedName = prefs.getString('userName');
+
+      if (cachedName != null && cachedName.isNotEmpty) {
+        setState(() {
+          _userName = cachedName;
+          _isLoading = false;
+        });
+      }
+
+      // Still fetch from Firestore to update cache
       final User? currentUser = _auth.currentUser;
       if (currentUser != null) {
-        final userDoc = await _firestoreService.getDocument('users', currentUser.uid);
+        final userDoc =
+            await _firestoreService.getDocument('users', currentUser.uid);
         if (userDoc.exists) {
           final userData = userDoc.data() as Map<String, dynamic>;
+          final name = userData['prenom'] ?? '';
+
+          // Update cache
+          await prefs.setString('userName', name);
+
           setState(() {
-            _userName = userData['prenom'] ?? '';
+            _userName = name;
             _isLoading = false;
           });
         } else {
@@ -121,7 +140,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                          MaterialPageRoute(
+                              builder: (context) => const SettingsScreen()),
                         );
                       },
                     ),
@@ -212,7 +232,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const CalculateDoseScreen()),
+                          MaterialPageRoute(
+                              builder: (context) =>
+                                  const CalculateDoseScreen()),
                         );
                       },
                     ),
@@ -221,7 +243,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const LogGlucoseScreen()),
+                          MaterialPageRoute(
+                              builder: (context) => const LogGlucoseScreen()),
                         );
                       },
                     ),
@@ -230,7 +253,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => AddPlateScreen()),
+                          MaterialPageRoute(
+                              builder: (context) => const AddPlateScreen()),
                         );
                       },
                     ),
@@ -239,7 +263,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const HistorySreen()),
+                          MaterialPageRoute(
+                              builder: (context) => const HistorySreen()),
                         );
                       },
                     ),
