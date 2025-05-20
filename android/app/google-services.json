@@ -12,7 +12,20 @@
           "package_name": "com.example.diazen"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1085790160027-3n5bamssoeb4n82ptr28m9344vmbeetj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.diazen",
+            "certificate_hash": "29241e03f2ae5f8a55945e27e408284cfa9b4d62"
+          }
+        },
+        {
+          "client_id": "1085790160027-mjo2fkfh9ul2adn63u7gaq9t87v9jkmb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDtVEaGABl5tuJ2aQAQbvKfl3qCzkHRcB8"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1085790160027-4falmoinvvabfmho428423gni2k3nju8.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1085790160027-16kc3p5a94h6cjamm8h9hqgh2pqvufte.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.diazen"
+              }
+            }
+          ]
         }
       }
     }

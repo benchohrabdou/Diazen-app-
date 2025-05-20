@@ -4,5 +4,6 @@
     <string name="fb_login_protocol_scheme">fb1261208528762453</string>
     <string name="facebook_client_token">9bbc39e4d28c6bd5dfb8e39af9a7a1d9</string>
     <string name="default_web_client_id">
-        1085790160027-3n5bamssoeb4n82ptr28m9344vmbeetj.apps.googleusercontent.com</string>
+        1085790160027-3n5bamssoeb4n82ptr28m9344vmbeetj.apps.googleusercontent.com</string> <!--
+    Ajoutez cette ligne -->
 </resources>

@@ -54,7 +54,7 @@
 				<string>Editor</string>
 				<key>CFBundleURLSchemes</key>
 				<array>
-					<!-- Remplacez par votre identifiant client inversé Google -->
+					<!-- Remplacez par votre identifiant client inversé Google pour iOS -->
 					<string>
 						com.googleusercontent.apps.1085790160027-16kc3p5a94h6cjamm8h9hqgh2pqvufte</string>
 				</array>
