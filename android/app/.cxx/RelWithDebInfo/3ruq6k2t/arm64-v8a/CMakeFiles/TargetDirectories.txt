@@ -1,0 +1,2 @@
+C:/Users/Pc Bridge/Desktop/diazen/android/app/.cxx/RelWithDebInfo/3ruq6k2t/arm64-v8a/CMakeFiles/edit_cache.dir
+C:/Users/Pc Bridge/Desktop/diazen/android/app/.cxx/RelWithDebInfo/3ruq6k2t/arm64-v8a/CMakeFiles/rebuild_cache.dir

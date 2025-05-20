@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'medical_info_form.dart';
-import 'loginpage.dart';
+import 'package:diazen/authentication/medical_info_form.dart';
+import 'package:diazen/authentication/social_auth_service.dart';
+import 'package:diazen/authentication/loginpage.dart';
 
 class Signuppage extends StatefulWidget {
   const Signuppage({super.key});
@@ -14,6 +15,7 @@ class Signuppage extends StatefulWidget {
 class _SignuppageState extends State<Signuppage> {
   final _formsignupkey = GlobalKey<FormState>();
   final _auth = FirebaseAuth.instance;
+  final SocialAuthService _socialAuthService = SocialAuthService();
   bool _isLoading = false;
   bool _emailSent = false;
   Timer? _verificationTimer;
@@ -418,7 +420,7 @@ class _SignuppageState extends State<Signuppage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               ElevatedButton(
-                onPressed: () {},
+                onPressed: () => _socialAuthService.signInWithGoogle(context),
                 style: ElevatedButton.styleFrom(
                   shape: const CircleBorder(),
                   padding: const EdgeInsets.all(10),
@@ -428,7 +430,7 @@ class _SignuppageState extends State<Signuppage> {
               ),
               const SizedBox(width: 10),
               ElevatedButton(
-                onPressed: () {},
+                onPressed: () => _socialAuthService.signInWithFacebook(context),
                 style: ElevatedButton.styleFrom(
                   shape: const CircleBorder(),
                   padding: const EdgeInsets.all(10),
@@ -439,7 +441,9 @@ class _SignuppageState extends State<Signuppage> {
               ),
               const SizedBox(width: 10),
               ElevatedButton(
-                onPressed: () {},
+                onPressed: () {
+                  // Apple sign in - not implemented yet
+                },
                 style: ElevatedButton.styleFrom(
                   shape: const CircleBorder(),
                   padding: const EdgeInsets.all(10),

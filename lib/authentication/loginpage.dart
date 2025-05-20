@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:diazen/screens/home_screen.dart';
 import 'package:diazen/screens/mainscreen.dart';
+import 'package:diazen/authentication/social_auth_service.dart';
 
 class Loginpage extends StatefulWidget {
   const Loginpage({super.key});
@@ -16,6 +17,7 @@ class Loginpage extends StatefulWidget {
 class _LoginpageState extends State<Loginpage> {
   final _formsigninkey = GlobalKey<FormState>();
   final _auth = FirebaseAuth.instance;
+  final SocialAuthService _socialAuthService = SocialAuthService();
 
   TextEditingController emailController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
@@ -25,6 +27,7 @@ class _LoginpageState extends State<Loginpage> {
   Color passwordBorderColor = Colors.grey;
   double emailBorderWidth = 1.0;
   double passwordBorderWidth = 1.0;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -73,6 +76,10 @@ class _LoginpageState extends State<Loginpage> {
 
   void _signIn() async {
     if (_formsigninkey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+      });
+
       try {
         UserCredential userCredential = await _auth.signInWithEmailAndPassword(
           email: emailController.text,
@@ -103,6 +110,10 @@ class _LoginpageState extends State<Loginpage> {
             content: Text(e.message ?? 'Error occurred'),
           ),
         );
+      } finally {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -328,7 +339,7 @@ class _LoginpageState extends State<Loginpage> {
                             ),
                             const SizedBox(height: 25),
                             ElevatedButton(
-                              onPressed: _signIn,
+                              onPressed: _isLoading ? null : _signIn,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF4A7BF7),
                                 foregroundColor: Colors.white,
@@ -337,14 +348,23 @@ class _LoginpageState extends State<Loginpage> {
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                               ),
-                              child: const Text(
-                                'Sign in',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontFamily: 'SfProDisplay',
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Sign in',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontFamily: 'SfProDisplay',
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                             ),
                             const SizedBox(
                               height: 25.0,
@@ -386,7 +406,8 @@ class _LoginpageState extends State<Loginpage> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 ElevatedButton(
-                                  onPressed: () {},
+                                  onPressed: () => _socialAuthService
+                                      .signInWithGoogle(context),
                                   style: ElevatedButton.styleFrom(
                                     shape: const CircleBorder(),
                                     padding: const EdgeInsets.all(10),
@@ -398,28 +419,33 @@ class _LoginpageState extends State<Loginpage> {
                                 ),
                                 const SizedBox(width: 10),
                                 ElevatedButton(
-                                    onPressed: () {},
-                                    style: ElevatedButton.styleFrom(
-                                      shape: const CircleBorder(),
-                                      padding: const EdgeInsets.all(10),
-                                      backgroundColor: Colors.white,
-                                    ),
-                                    child: Image.asset(
-                                        'assets/images/facebooklogo.png',
-                                        height: 30)),
+                                  onPressed: () => _socialAuthService
+                                      .signInWithFacebook(context),
+                                  style: ElevatedButton.styleFrom(
+                                    shape: const CircleBorder(),
+                                    padding: const EdgeInsets.all(10),
+                                    backgroundColor: Colors.white,
+                                  ),
+                                  child: Image.asset(
+                                      'assets/images/facebooklogo.png',
+                                      height: 30),
+                                ),
                                 const SizedBox(
                                   width: 10,
                                 ),
                                 ElevatedButton(
-                                    onPressed: () {},
-                                    style: ElevatedButton.styleFrom(
-                                      shape: const CircleBorder(),
-                                      padding: const EdgeInsets.all(10),
-                                      backgroundColor: Colors.white,
-                                    ),
-                                    child: Image.asset(
-                                        'assets/images/appleicon.png',
-                                        height: 30)),
+                                  onPressed: () {
+                                    // Apple sign in - not implemented yet
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    shape: const CircleBorder(),
+                                    padding: const EdgeInsets.all(10),
+                                    backgroundColor: Colors.white,
+                                  ),
+                                  child: Image.asset(
+                                      'assets/images/appleicon.png',
+                                      height: 30),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 30),
