@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:diazen/classes/activite.dart';
 import 'package:diazen/classes/firestore_ops.dart';
@@ -6,6 +5,7 @@ import 'package:diazen/screens/activity_api_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
+import 'dart:async';
 
 class ActivityScreen extends StatefulWidget {
   const ActivityScreen({Key? key}) : super(key: key);
@@ -23,17 +23,17 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
   bool _isBottomSheetOpen = false;
   bool _isLoading = false;
-  bool _isLoadingMore = false;
   String _errorMessage = '';
   double _userWeight = 70.0; // Default weight in kg
 
   // Activity search results
   List<Map<String, dynamic>> _searchResults = [];
 
-  // Activity history with pagination
+  // Activity history
   List<Activite> _activityHistory = [];
   DocumentSnapshot? _lastDocument;
   bool _hasMoreActivities = true;
+  bool _isLoadingMore = false;
 
   @override
   void initState() {
@@ -104,8 +104,6 @@ class _ActivityScreenState extends State<ActivityScreen> {
         if (activitiesSnapshot.docs.isEmpty) {
           setState(() {
             _hasMoreActivities = false;
-            _isLoading = false;
-            _isLoadingMore = false;
           });
           return;
         }
@@ -127,12 +125,11 @@ class _ActivityScreenState extends State<ActivityScreen> {
           } else {
             _activityHistory = activities;
           }
-          _isLoading = false;
-          _isLoadingMore = false;
         });
       }
     } catch (e) {
       print('Error loading activity history: $e');
+    } finally {
       setState(() {
         _isLoading = false;
         _isLoadingMore = false;
@@ -141,10 +138,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
   }
 
   void _searchActivities(String query) {
-    // Cancel previous debounce timer
     if (_debounce?.isActive ?? false) _debounce!.cancel();
 
-    // Set up new timer
     _debounce = Timer(const Duration(milliseconds: 500), () {
       // Only search if query has at least 2 characters
       if (query.length >= 2) {
@@ -208,7 +203,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
       // Add to local list
       setState(() {
-        _activityHistory.insert(0, activity); // Add to beginning of list
+        _activityHistory.add(activity);
       });
 
       // Save to Firestore
@@ -218,6 +213,17 @@ class _ActivityScreenState extends State<ActivityScreen> {
           final uuid = Uuid();
           final activityId = uuid.v4();
 
+          // Create timestamp for the selected time today
+          final now = DateTime.now();
+          TimeOfDay activityTime = result['time'] ?? TimeOfDay.now();
+          final timestamp = DateTime(
+            now.year,
+            now.month,
+            now.day,
+            activityTime.hour,
+            activityTime.minute,
+          );
+
           await _firestoreService.addDocument('activities', {
             'id': activityId,
             'userId': currentUser.uid,
@@ -225,12 +231,17 @@ class _ActivityScreenState extends State<ActivityScreen> {
             'cal30mn': activity.cal30mn,
             'typeAct': activity.typeAct,
             'duration': result['minutes'],
-            'timestamp': DateTime.now().toIso8601String(),
+            'time': '${activityTime.hour}:${activityTime.minute}',
+            'timestamp': timestamp.toIso8601String(),
+            'createdAt': DateTime.now().toIso8601String(),
           });
 
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Activity saved successfully')),
           );
+
+          // Refresh activity history
+          _loadActivityHistory();
         }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -309,7 +320,15 @@ class _ActivityScreenState extends State<ActivityScreen> {
                                       contentPadding:
                                           EdgeInsets.symmetric(horizontal: 12),
                                     ),
-                                    onChanged: _searchActivities,
+                                    onChanged: (value) {
+                                      if (value.length > 2) {
+                                        _searchActivities(value);
+                                      } else if (value.isEmpty) {
+                                        setState(() {
+                                          _searchResults = [];
+                                        });
+                                      }
+                                    },
                                   ),
                                 ),
                                 _isLoading
@@ -349,37 +368,57 @@ class _ActivityScreenState extends State<ActivityScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 8),
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[200],
-                                      borderRadius: BorderRadius.circular(12),
+                                  ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      maxHeight:
+                                          MediaQuery.of(context).size.height *
+                                              0.3,
                                     ),
-                                    child: ListView.builder(
-                                      shrinkWrap: true,
-                                      physics:
-                                          const NeverScrollableScrollPhysics(),
-                                      itemCount: _searchResults.length,
-                                      itemBuilder: (context, index) {
-                                        final activity = _searchResults[index];
-                                        return ListTile(
-                                          title: Text(
-                                            activity['name'],
-                                            style: const TextStyle(
-                                                fontFamily: 'SfProDisplay'),
-                                          ),
-                                          subtitle: Text(
-                                            '${activity['caloriesPer30Min'].toStringAsFixed(0)} kcal / 30 min',
-                                            style: const TextStyle(
-                                                fontFamily: 'SfProDisplay'),
-                                          ),
-                                          trailing: IconButton(
-                                            icon: const Icon(Icons.add_circle,
-                                                color: Color(0xFF4A7BF7)),
-                                            onPressed: () =>
-                                                _showAddActivitySheet(activity),
-                                          ),
-                                        );
-                                      },
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey[200],
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        child: ListView.builder(
+                                          shrinkWrap: true,
+                                          physics:
+                                              const AlwaysScrollableScrollPhysics(),
+                                          itemCount: _searchResults.length,
+                                          itemBuilder: (context, index) {
+                                            final activity =
+                                                _searchResults[index];
+                                            return ListTile(
+                                              title: Text(
+                                                activity['name'],
+                                                style: const TextStyle(
+                                                  fontFamily: 'SfProDisplay',
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              subtitle: Text(
+                                                '${activity['caloriesPer30Min'].toStringAsFixed(0)} kcal / 30 min',
+                                                style: const TextStyle(
+                                                  fontFamily: 'SfProDisplay',
+                                                ),
+                                              ),
+                                              trailing: SizedBox(
+                                                width: 40,
+                                                child: IconButton(
+                                                  icon: const Icon(
+                                                      Icons.add_circle,
+                                                      color: Color(0xFF4A7BF7)),
+                                                  onPressed: () =>
+                                                      _showAddActivitySheet(
+                                                          activity),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -409,9 +448,9 @@ class _ActivityScreenState extends State<ActivityScreen> {
                           ),
                           const SizedBox(height: 12),
 
-                          // Activity history list with pagination
+                          // Activity history list
                           Expanded(
-                            child: _activityHistory.isEmpty && !_isLoading
+                            child: _activityHistory.isEmpty
                                 ? Center(
                                     child: Text(
                                       'No activities yet',
@@ -421,188 +460,174 @@ class _ActivityScreenState extends State<ActivityScreen> {
                                       ),
                                     ),
                                   )
-                                : NotificationListener<ScrollNotification>(
-                                    onNotification:
-                                        (ScrollNotification scrollInfo) {
-                                      if (scrollInfo.metrics.pixels ==
-                                              scrollInfo
-                                                  .metrics.maxScrollExtent &&
-                                          _hasMoreActivities &&
-                                          !_isLoadingMore) {
-                                        _loadActivityHistory(loadMore: true);
-                                      }
-                                      return true;
-                                    },
-                                    child: ListView.builder(
-                                      itemCount: _activityHistory.length +
-                                          (_hasMoreActivities ? 1 : 0),
-                                      itemBuilder: (context, index) {
-                                        if (index == _activityHistory.length) {
-                                          return _isLoadingMore
-                                              ? const Center(
-                                                  child: Padding(
-                                                    padding:
-                                                        EdgeInsets.all(8.0),
-                                                    child:
-                                                        CircularProgressIndicator(),
-                                                  ),
-                                                )
-                                              : const SizedBox.shrink();
+                                : ListView.builder(
+                                    itemCount: _activityHistory.length +
+                                        (_hasMoreActivities ? 1 : 0),
+                                    itemBuilder: (context, index) {
+                                      if (index == _activityHistory.length) {
+                                        if (!_isLoadingMore) {
+                                          _loadActivityHistory(loadMore: true);
                                         }
-
-                                        final act = _activityHistory[index];
-                                        return Padding(
-                                          padding: const EdgeInsets.only(
-                                              bottom: 12.0),
-                                          child: Container(
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF4A7BF7),
-                                              borderRadius:
-                                                  BorderRadius.circular(16),
-                                            ),
-                                            padding: const EdgeInsets.all(16),
-                                            child: Row(
-                                              children: [
-                                                Expanded(
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Text(
-                                                        act.nom,
-                                                        style: const TextStyle(
-                                                          color: Colors.white,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          fontSize: 16,
-                                                          fontFamily:
-                                                              'SfProDisplay',
-                                                        ),
-                                                      ),
-                                                      const SizedBox(height: 4),
-                                                      Row(
-                                                        children: [
-                                                          const Icon(
-                                                            Icons
-                                                                .local_fire_department,
-                                                            color: Colors.white,
-                                                            size: 16,
-                                                          ),
-                                                          const SizedBox(
-                                                              width: 4),
-                                                          Text(
-                                                            '${act.cal30mn.toInt()} Kcal',
-                                                            style:
-                                                                const TextStyle(
-                                                              color:
-                                                                  Colors.white,
-                                                              fontFamily:
-                                                                  'SfProDisplay',
-                                                            ),
-                                                          ),
-                                                          const SizedBox(
-                                                              width: 10),
-                                                          const Text('.',
-                                                              style: TextStyle(
-                                                                  color: Colors
-                                                                      .white)),
-                                                          const SizedBox(
-                                                              width: 6),
-                                                          Text(
-                                                            '30 min',
-                                                            style:
-                                                                const TextStyle(
-                                                              color:
-                                                                  Colors.white,
-                                                              fontFamily:
-                                                                  'SfProDisplay',
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                Container(
-                                                  decoration:
-                                                      const BoxDecoration(
-                                                    color: Colors.white,
-                                                    shape: BoxShape.circle,
-                                                  ),
-                                                  child: const Icon(Icons.check,
-                                                      color: Color(0xFF4A7BF7)),
-                                                ),
-                                              ],
-                                            ),
+                                        return const Center(
+                                          child: Padding(
+                                            padding: EdgeInsets.all(8.0),
+                                            child: CircularProgressIndicator(),
                                           ),
                                         );
-                                      },
-                                    ),
+                                      }
+
+                                      final act = _activityHistory[index];
+                                      return Padding(
+                                        padding:
+                                            const EdgeInsets.only(bottom: 12.0),
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF4A7BF7),
+                                            borderRadius:
+                                                BorderRadius.circular(16),
+                                          ),
+                                          padding: const EdgeInsets.all(16),
+                                          child: Row(
+                                            children: [
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      act.nom,
+                                                      style: const TextStyle(
+                                                        color: Colors.white,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 16,
+                                                        fontFamily:
+                                                            'SfProDisplay',
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 4),
+                                                    Row(
+                                                      children: [
+                                                        const Icon(
+                                                          Icons
+                                                              .local_fire_department,
+                                                          color: Colors.white,
+                                                          size: 16,
+                                                        ),
+                                                        const SizedBox(
+                                                            width: 4),
+                                                        Text(
+                                                          '${act.cal30mn.toInt()} Kcal',
+                                                          style:
+                                                              const TextStyle(
+                                                            color: Colors.white,
+                                                            fontFamily:
+                                                                'SfProDisplay',
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                            width: 10),
+                                                        const Text('.',
+                                                            style: TextStyle(
+                                                                color: Colors
+                                                                    .white)),
+                                                        const SizedBox(
+                                                            width: 6),
+                                                        Text(
+                                                          '30 min',
+                                                          style:
+                                                              const TextStyle(
+                                                            color: Colors.white,
+                                                            fontFamily:
+                                                                'SfProDisplay',
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Container(
+                                                decoration: const BoxDecoration(
+                                                  color: Colors.white,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(Icons.check,
+                                                    color: Color(0xFF4A7BF7)),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
                           ),
 
                           // "Add Activity" button - only show if no search results
                           if (_searchResults.isEmpty)
-                            GestureDetector(
-                              onTap: () async {
-                                final commonActivities =
-                                    await _activityApiService
-                                        .getCommonActivities();
-                                if (!mounted) return;
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    title: const Text('Common Activities'),
-                                    content: SizedBox(
-                                      width: double.maxFinite,
-                                      child: ListView.builder(
-                                        shrinkWrap: true,
-                                        itemCount: commonActivities.length,
-                                        itemBuilder: (context, index) {
-                                          return ListTile(
-                                            title:
-                                                Text(commonActivities[index]),
-                                            onTap: () {
-                                              _searchController.text =
-                                                  commonActivities[index];
-                                              _searchActivities(
-                                                  commonActivities[index]);
-                                              Navigator.pop(context);
-                                            },
-                                          );
-                                        },
+                            Container(
+                              width: double.infinity,
+                              constraints: const BoxConstraints(minHeight: 50),
+                              child: GestureDetector(
+                                onTap: () async {
+                                  final commonActivities =
+                                      await _activityApiService
+                                          .getCommonActivities();
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('Common Activities'),
+                                      content: SizedBox(
+                                        width: double.maxFinite,
+                                        child: ListView.builder(
+                                          shrinkWrap: true,
+                                          itemCount: commonActivities.length,
+                                          itemBuilder: (context, index) {
+                                            return ListTile(
+                                              title:
+                                                  Text(commonActivities[index]),
+                                              onTap: () {
+                                                _searchController.text =
+                                                    commonActivities[index];
+                                                _searchActivities(
+                                                    commonActivities[index]);
+                                                Navigator.pop(context);
+                                              },
+                                            );
+                                          },
+                                        ),
                                       ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context),
+                                          child: const Text('Cancel'),
+                                        ),
+                                      ],
                                     ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        child: const Text('Cancel'),
+                                  );
+                                },
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 16, horizontal: 24),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.add, color: Colors.black),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Add Activity',
+                                        style: TextStyle(
+                                          fontFamily: 'SfProDisplay',
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ],
                                   ),
-                                );
-                              },
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[300],
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 16, horizontal: 24),
-                                child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.add, color: Colors.black),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'Add Activity',
-                                      style: TextStyle(
-                                        fontFamily: 'SfProDisplay',
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
                                 ),
                               ),
                             ),
@@ -636,11 +661,13 @@ class _AddActivitySheet extends StatefulWidget {
 
 class _AddActivitySheetState extends State<_AddActivitySheet> {
   late TextEditingController _minutesController;
+  TimeOfDay? selectedTime;
 
   @override
   void initState() {
     super.initState();
     _minutesController = TextEditingController(text: '30');
+    selectedTime = TimeOfDay.now(); // Default to current time
   }
 
   @override
@@ -705,6 +732,77 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
               ),
             ],
           ),
+          const SizedBox(height: 16),
+
+          // Time selection
+          Row(
+            children: [
+              const Icon(Icons.access_time, size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'Time',
+                style: TextStyle(
+                  fontFamily: 'SfProDisplay',
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () async {
+              final TimeOfDay? picked = await showTimePicker(
+                context: context,
+                initialTime: selectedTime ?? TimeOfDay.now(),
+                builder: (BuildContext context, Widget? child) {
+                  return Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: const ColorScheme.light(
+                        primary: Color(0xFF4A7BF7),
+                        onPrimary: Colors.white,
+                        onSurface: Colors.black,
+                      ),
+                      timePickerTheme: TimePickerThemeData(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(16)),
+                        ),
+                      ),
+                    ),
+                    child: child!,
+                  );
+                },
+              );
+              if (picked != null) {
+                setState(() {
+                  selectedTime = picked;
+                });
+              }
+            },
+            child: AbsorbPointer(
+              child: TextField(
+                readOnly: true,
+                decoration: InputDecoration(
+                  hintText: selectedTime != null
+                      ? selectedTime!.format(context)
+                      : 'Select time',
+                  hintStyle: const TextStyle(
+                    fontFamily: 'SfProDisplay',
+                    color: Colors.black54,
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[300],
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
@@ -719,8 +817,11 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
               onPressed: () {
                 int minutes = int.tryParse(_minutesController.text) ?? 30;
                 double totalCalories = widget.caloriesPerMinute * minutes;
-                Navigator.pop(
-                    context, {'minutes': minutes, 'calories': totalCalories});
+                Navigator.pop(context, {
+                  'minutes': minutes,
+                  'calories': totalCalories,
+                  'time': selectedTime,
+                });
               },
               child: const Text(
                 'Add activity',

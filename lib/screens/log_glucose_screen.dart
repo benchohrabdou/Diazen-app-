@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:diazen/classes/firestore_ops.dart';
+import 'package:uuid/uuid.dart';
 
 class LogGlucoseScreen extends StatefulWidget {
   const LogGlucoseScreen({super.key});
@@ -10,12 +14,21 @@ class LogGlucoseScreen extends StatefulWidget {
 class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
   final TextEditingController glucoseController = TextEditingController();
   final TextEditingController noteController = TextEditingController();
+  final FirestoreService _firestoreService = FirestoreService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   TimeOfDay? selectedTime;
   String? selectedContext;
   bool _isSaving = false;
 
   final List<String> contextOptions = ['Before meal', 'After meal'];
+
+  @override
+  void initState() {
+    super.initState();
+    // Set default time to current time
+    selectedTime = TimeOfDay.now();
+  }
 
   @override
   void dispose() {
@@ -29,9 +42,23 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
       _isSaving = true;
     });
 
+    // Validate inputs
     if (glucoseController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter glucose value')),
+      );
+      setState(() {
+        _isSaving = false;
+      });
+      return;
+    }
+
+    // Validate glucose is a number
+    double? glucoseValue = double.tryParse(glucoseController.text);
+    if (glucoseValue == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please enter a valid number for glucose')),
       );
       setState(() {
         _isSaving = false;
@@ -59,20 +86,60 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
       return;
     }
 
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      // Get current user
+      final User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not logged in');
+      }
 
-    print('Glucose: ${glucoseController.text}');
-    print('Time: ${selectedTime!.format(context)}');
-    print('Context: $selectedContext');
-    print('Note: ${noteController.text}');
+      // Create a unique ID for this glucose log
+      final uuid = Uuid();
+      final logId = uuid.v4();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Glucose log saved')),
-    );
+      // Create timestamp for the selected time today
+      final now = DateTime.now();
+      final timestamp = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        selectedTime!.hour,
+        selectedTime!.minute,
+      );
 
-    setState(() {
-      _isSaving = false;
-    });
+      // Create glucose log data
+      Map<String, dynamic> glucoseData = {
+        'id': logId,
+        'userId': currentUser.uid,
+        'glucoseValue': glucoseValue,
+        'time': selectedTime!.format(context),
+        'timestamp': timestamp.toIso8601String(),
+        'context': selectedContext,
+        'note': noteController.text,
+        'createdAt': DateTime.now().toIso8601String(),
+      };
+
+      // Save to Firestore
+      await FirebaseFirestore.instance
+          .collection('glucose_logs')
+          .doc(logId)
+          .set(glucoseData);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Glucose log saved successfully')),
+      );
+
+      // Navigate back
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving glucose log: $e')),
+      );
+    } finally {
+      setState(() {
+        _isSaving = false;
+      });
+    }
   }
 
   @override
@@ -102,7 +169,8 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Glucose value
-                      _buildLabelRow('Glucose Value (mg/dL)', 'assets/images/glucose.png'),
+                      _buildLabelRow(
+                          'Glucose Value (mg/dL)', 'assets/images/glucose.png'),
                       const SizedBox(height: 6),
                       _buildTextField(
                         controller: glucoseController,
@@ -112,13 +180,14 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
                       const SizedBox(height: 24),
 
                       // Time
-                      _buildLabelRow('Time', 'assets/images/last injection.png'),
+                      _buildLabelRow(
+                          'Time', 'assets/images/last injection.png'),
                       const SizedBox(height: 6),
                       GestureDetector(
                         onTap: () async {
                           final TimeOfDay? picked = await showTimePicker(
                             context: context,
-                            initialTime: TimeOfDay.now(),
+                            initialTime: selectedTime ?? TimeOfDay.now(),
                             builder: (BuildContext context, Widget? child) {
                               return Theme(
                                 data: Theme.of(context).copyWith(
@@ -129,7 +198,8 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
                                   ),
                                   timePickerTheme: TimePickerThemeData(
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.all(Radius.circular(16)),
+                                      borderRadius:
+                                          BorderRadius.all(Radius.circular(16)),
                                     ),
                                   ),
                                 ),
@@ -201,7 +271,8 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
                       const SizedBox(height: 6),
                       _buildTextField(
                         controller: noteController,
-                        hintText: 'Optional note (e.g., stress, heavy meal, etc.)',
+                        hintText:
+                            'Optional note (e.g., stress, heavy meal, etc.)',
                         maxLines: 3,
                       ),
                     ],
@@ -264,7 +335,6 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
     );
   }
 
-
   Widget _buildTextField({
     TextEditingController? controller,
     required String hintText,
@@ -284,7 +354,8 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
         ),
         filled: true,
         fillColor: Colors.grey[300],
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
