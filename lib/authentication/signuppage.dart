@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:diazen/authentication/medical_info_form.dart';
 import 'package:diazen/authentication/social_auth_service.dart';
 import 'package:diazen/authentication/loginpage.dart';
+import 'package:diazen/screens/mainscreen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class Signuppage extends StatefulWidget {
   const Signuppage({super.key});
@@ -126,6 +128,11 @@ class _SignuppageState extends State<Signuppage> {
       if (user != null && user.emailVerified) {
         // Email is verified, proceed to medical info form
         if (!mounted) return;
+
+        // Mark user as logged in
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('isLoggedIn', true);
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -134,6 +141,12 @@ class _SignuppageState extends State<Signuppage> {
               email: user.email!,
               firstName: firstNameController.text,
               lastName: lastNameController.text,
+              onComplete: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const MainScreen()),
+                );
+              },
             ),
           ),
         );
@@ -217,56 +230,55 @@ class _SignuppageState extends State<Signuppage> {
         elevation: 0,
       ),
       backgroundColor: const Color(0xFF4A7BF7),
-      body: Column(
-        children: [
-          Expanded(
-            child: Column(
-              children: [
-                const SizedBox(height: 20),
-                const Text(
-                  "Get started",
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontFamily: 'SfProDisplay',
-                      fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 20),
-                Center(
-                  child: SizedBox(
-                    height: 120,
-                    width: 100,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Top section - reduced height
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              child: Column(
+                children: [
+                  const Text(
+                    "Get started",
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontFamily: 'SfProDisplay',
+                        fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(
+                    height: 80,
+                    width: 80,
                     child: Image.asset(
                       'assets/images/signupimge2.png',
                       fit: BoxFit.contain,
                     ),
                   ),
-                ),
-                const SizedBox(height: 30),
-                Expanded(
-                  child: Container(
-                    decoration: const BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(40),
-                          topRight: Radius.circular(40),
-                        )),
-                    child: SingleChildScrollView(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 60),
-                        child: _emailSent
-                            ? _buildVerificationUI()
-                            : _buildSignUpForm(),
-                      ),
-                    ),
+                ],
+              ),
+            ),
+            // Form section
+            Expanded(
+              child: Container(
+                decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(40),
+                      topRight: Radius.circular(40),
+                    )),
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 20),
+                    child: _emailSent
+                        ? _buildVerificationUI()
+                        : _buildSignUpForm(),
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-          const SizedBox(height: 50),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -289,13 +301,13 @@ class _SignuppageState extends State<Signuppage> {
                 label: const Text('First Name'),
                 hintText: 'Enter your first name',
                 hintStyle: const TextStyle(
-                  backgroundColor: Color.fromARGB(255, 187, 186, 186),
+                  color: Colors.black54,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
                 )),
           ),
-          const SizedBox(height: 25),
+          const SizedBox(height: 20),
           TextFormField(
             controller: lastNameController,
             validator: (value) {
@@ -307,14 +319,13 @@ class _SignuppageState extends State<Signuppage> {
             decoration: InputDecoration(
                 label: const Text('Family Name'),
                 hintText: 'Enter your family name',
-                hintStyle: const TextStyle(
-                    backgroundColor: Color.fromARGB(255, 187, 186, 186),
-                    color: Color.fromARGB(255, 108, 108, 108)),
+                hintStyle:
+                    const TextStyle(color: Color.fromARGB(255, 108, 108, 108)),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
                 )),
           ),
-          const SizedBox(height: 25),
+          const SizedBox(height: 20),
           TextFormField(
             controller: emailController,
             validator: (value) {
@@ -329,14 +340,13 @@ class _SignuppageState extends State<Signuppage> {
             decoration: InputDecoration(
                 label: const Text('Email'),
                 hintText: 'Enter your email',
-                hintStyle: const TextStyle(
-                    backgroundColor: Color.fromARGB(255, 187, 186, 186),
-                    color: Color.fromARGB(255, 108, 108, 108)),
+                hintStyle:
+                    const TextStyle(color: Color.fromARGB(255, 108, 108, 108)),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
                 )),
           ),
-          const SizedBox(height: 25),
+          const SizedBox(height: 20),
           TextFormField(
             controller: passwordController,
             obscureText: true,
@@ -352,14 +362,13 @@ class _SignuppageState extends State<Signuppage> {
             decoration: InputDecoration(
                 label: const Text('Password'),
                 hintText: 'Enter password',
-                hintStyle: const TextStyle(
-                    backgroundColor: Color.fromARGB(255, 187, 186, 186),
-                    color: Color.fromARGB(255, 108, 108, 108)),
+                hintStyle:
+                    const TextStyle(color: Color.fromARGB(255, 108, 108, 108)),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
                 )),
           ),
-          const SizedBox(height: 25),
+          const SizedBox(height: 20),
           ElevatedButton(
             onPressed: _isLoading ? null : _signUp,
             style: ElevatedButton.styleFrom(
@@ -385,7 +394,7 @@ class _SignuppageState extends State<Signuppage> {
                         fontFamily: 'SfProDisplay',
                         fontWeight: FontWeight.bold)),
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -415,7 +424,7 @@ class _SignuppageState extends State<Signuppage> {
               ),
             ],
           ),
-          const SizedBox(height: 30.0),
+          const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -453,7 +462,7 @@ class _SignuppageState extends State<Signuppage> {
               ),
             ],
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -480,7 +489,6 @@ class _SignuppageState extends State<Signuppage> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
         ],
       ),
     );

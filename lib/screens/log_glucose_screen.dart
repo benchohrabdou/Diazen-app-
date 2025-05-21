@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:diazen/classes/firestore_ops.dart';
 import 'package:uuid/uuid.dart';
+import 'package:intl/intl.dart';
 
 class LogGlucoseScreen extends StatefulWidget {
   const LogGlucoseScreen({super.key});
@@ -14,10 +15,14 @@ class LogGlucoseScreen extends StatefulWidget {
 class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
   final TextEditingController glucoseController = TextEditingController();
   final TextEditingController noteController = TextEditingController();
+  final TextEditingController dateController = TextEditingController();
+  final TextEditingController timeController = TextEditingController();
+
   final FirestoreService _firestoreService = FirestoreService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  TimeOfDay? selectedTime;
+  DateTime selectedDate = DateTime.now();
+  TimeOfDay selectedTime = TimeOfDay.now();
   String? selectedContext;
   bool _isSaving = false;
 
@@ -26,15 +31,77 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
   @override
   void initState() {
     super.initState();
-    // Set default time to current time
-    selectedTime = TimeOfDay.now();
+    // Initialize date and time controllers with current values
+    dateController.text = DateFormat('yyyy-MM-dd').format(selectedDate);
+    timeController.text = selectedTime.format(context);
   }
 
   @override
   void dispose() {
     glucoseController.dispose();
     noteController.dispose();
+    dateController.dispose();
+    timeController.dispose();
     super.dispose();
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF4A7BF7),
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && picked != selectedDate) {
+      setState(() {
+        selectedDate = picked;
+        dateController.text = DateFormat('yyyy-MM-dd').format(selectedDate);
+      });
+    }
+  }
+
+  Future<void> _selectTime(BuildContext context) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: selectedTime,
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF4A7BF7),
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+            timePickerTheme: TimePickerThemeData(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(16)),
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        selectedTime = picked;
+        timeController.text = selectedTime.format(context);
+      });
+    }
   }
 
   void _saveLog() async {
@@ -66,16 +133,6 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
       return;
     }
 
-    if (selectedTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select time')),
-      );
-      setState(() {
-        _isSaving = false;
-      });
-      return;
-    }
-
     if (selectedContext == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select context')),
@@ -97,14 +154,13 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
       final uuid = Uuid();
       final logId = uuid.v4();
 
-      // Create timestamp for the selected time today
-      final now = DateTime.now();
+      // Create timestamp from selected date and time
       final timestamp = DateTime(
-        now.year,
-        now.month,
-        now.day,
-        selectedTime!.hour,
-        selectedTime!.minute,
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+        selectedTime.hour,
+        selectedTime.minute,
       );
 
       // Create glucose log data
@@ -112,7 +168,8 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
         'id': logId,
         'userId': currentUser.uid,
         'glucoseValue': glucoseValue,
-        'time': selectedTime!.format(context),
+        'date': DateFormat('yyyy-MM-dd').format(selectedDate),
+        'time': selectedTime.format(context),
         'timestamp': timestamp.toIso8601String(),
         'context': selectedContext,
         'note': noteController.text,
@@ -179,45 +236,31 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
                       ),
                       const SizedBox(height: 24),
 
+                      // Date
+                      _buildLabelRow(
+                          'Date', 'assets/images/last injection.png'),
+                      const SizedBox(height: 6),
+                      GestureDetector(
+                        onTap: () => _selectDate(context),
+                        child: AbsorbPointer(
+                          child: _buildTextField(
+                            controller: dateController,
+                            hintText: 'Select date',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
                       // Time
                       _buildLabelRow(
                           'Time', 'assets/images/last injection.png'),
                       const SizedBox(height: 6),
                       GestureDetector(
-                        onTap: () async {
-                          final TimeOfDay? picked = await showTimePicker(
-                            context: context,
-                            initialTime: selectedTime ?? TimeOfDay.now(),
-                            builder: (BuildContext context, Widget? child) {
-                              return Theme(
-                                data: Theme.of(context).copyWith(
-                                  colorScheme: const ColorScheme.light(
-                                    primary: Color(0xFF4A7BF7),
-                                    onPrimary: Colors.white,
-                                    onSurface: Colors.black,
-                                  ),
-                                  timePickerTheme: TimePickerThemeData(
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.all(Radius.circular(16)),
-                                    ),
-                                  ),
-                                ),
-                                child: child!,
-                              );
-                            },
-                          );
-                          if (picked != null) {
-                            setState(() {
-                              selectedTime = picked;
-                            });
-                          }
-                        },
+                        onTap: () => _selectTime(context),
                         child: AbsorbPointer(
                           child: _buildTextField(
-                            hintText: selectedTime != null
-                                ? selectedTime!.format(context)
-                                : 'Select time',
+                            controller: timeController,
+                            hintText: 'Select time',
                           ),
                         ),
                       ),
@@ -345,7 +388,7 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
       controller: controller,
       maxLines: maxLines,
       keyboardType: keyboardType,
-      readOnly: controller == null, // Pour les champs simulés (comme time)
+      readOnly: controller == dateController || controller == timeController,
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: const TextStyle(
