@@ -31,9 +31,18 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize date and time controllers with current values
+    // Initialize date controller
     dateController.text = DateFormat('yyyy-MM-dd').format(selectedDate);
-    timeController.text = selectedTime.format(context);
+
+    // Initialize time controller after the widget is built
+    // This prevents the error with context not being available
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          timeController.text = selectedTime.format(context);
+        });
+      }
+    });
   }
 
   @override
