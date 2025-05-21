@@ -19,23 +19,22 @@ class CustomCard extends StatelessWidget {
         height: 150,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Color(0xFFBDE3FB), // light blue
-              Color(0xFFD1D1D1), // darker blue
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
+  color: Color.fromARGB(207, 74, 123, 247),
+  borderRadius: BorderRadius.circular(20), // Choisis un seul radius
+  boxShadow: [
+    BoxShadow(
+      color: Colors.grey.withOpacity(0.2),
+      blurRadius: 6,
+      offset: Offset(0, 3),
+    ),
+    BoxShadow(
+      color: Colors.black.withOpacity(0.05),
+      blurRadius: 10,
+      offset: Offset(0, 4),
+    ),
+  ],
+),
+
         child: Text(
           text,
           style: const TextStyle(

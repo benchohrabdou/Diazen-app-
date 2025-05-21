@@ -4,7 +4,7 @@ import 'package:diazen/screens/log_glucose_screen.dart';
 import 'package:diazen/screens/settings_screen.dart';
 import 'package:diazen/screens/custom_card.dart';
 import 'package:diazen/screens/add_plate_screen.dart';
-import 'package:diazen/screens/history_sreen.dart';
+import 'package:diazen/screens/history_screen.dart';
 import 'package:diazen/classes/firestore_ops.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -156,65 +156,62 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      height: 200,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF4A7BF7), Colors.white],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.black.withOpacity(0.6),
-                              Colors.black.withOpacity(0.3),
-                            ],
-                          ),
-                        ),
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Last Operations',
-                              style: TextStyle(
-                                fontFamily: 'SfProDisplay',
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                _buildOperationItem(
-                                  icon: Icons.monitor_heart,
-                                  label: 'Glucose',
-                                  value: '120 mg/dL',
-                                ),
-                                _buildOperationItem(
-                                  icon: Icons.medical_services,
-                                  label: 'Injection',
-                                  value: '8 units',
-                                ),
-                                _buildOperationItem(
-                                  icon: Icons.restaurant,
-                                  label: 'Last Meal',
-                                  value: '2h ago',
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+  height: 200,
+  decoration: BoxDecoration(
+    borderRadius: BorderRadius.circular(20),
+    color: const Color(0xFF4A7BF7), // Bleu primaire pur
+  ),
+  child: Container(
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(20),
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Colors.black.withOpacity(0.25),
+          Colors.black.withOpacity(0.1),
+        ],
+      ),
+    ),
+    padding: const EdgeInsets.all(16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Text(
+          'Last Operations',
+          style: TextStyle(
+            fontFamily: 'SfProDisplay',
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildOperationItem(
+              icon: Icons.monitor_heart,
+              label: 'Glucose',
+              value: '120 mg/dL',
+            ),
+            _buildOperationItem(
+              icon: Icons.medical_services,
+              label: 'Injection',
+              value: '8 units',
+            ),
+            _buildOperationItem(
+              icon: Icons.restaurant,
+              label: 'Last Meal',
+              value: '2h ago',
+            ),
+          ],
+        ),
+      ],
+    ),
+  ),
+)
+
                   ],
                 ),
               ),
@@ -264,7 +261,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => const HistorySreen()),
+                              builder: (context) =>  HistoryScreen()),
                         );
                       },
                     ),

@@ -24,42 +24,12 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
     super.dispose();
   }
 
-  void _saveLog() async {
-    setState(() {
-      _isSaving = true;
-    });
+  Future<void> _saveLog() async {
+    if (!_validateInputs()) return;
 
-    if (glucoseController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter glucose value')),
-      );
-      setState(() {
-        _isSaving = false;
-      });
-      return;
-    }
+    setState(() => _isSaving = true);
 
-    if (selectedTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select time')),
-      );
-      setState(() {
-        _isSaving = false;
-      });
-      return;
-    }
-
-    if (selectedContext == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select context')),
-      );
-      setState(() {
-        _isSaving = false;
-      });
-      return;
-    }
-
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(const Duration(seconds: 2)); // Simulation d'une sauvegarde
 
     print('Glucose: ${glucoseController.text}');
     print('Time: ${selectedTime!.format(context)}');
@@ -70,9 +40,62 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
       const SnackBar(content: Text('Glucose log saved')),
     );
 
-    setState(() {
-      _isSaving = false;
-    });
+    setState(() => _isSaving = false);
+  }
+
+  bool _validateInputs() {
+    if (glucoseController.text.isEmpty) {
+      _showMessage('Please enter glucose value');
+      return false;
+    }
+
+    if (selectedTime == null) {
+      _showMessage('Please select time');
+      return false;
+    }
+
+    if (selectedContext == null) {
+      _showMessage('Please select context');
+      return false;
+    }
+
+    return true;
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Future<void> _pickTime() async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF4A7BF7),
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+            timePickerTheme: const TimePickerThemeData(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(16)),
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        selectedTime = picked;
+      });
+    }
   }
 
   @override
@@ -101,8 +124,7 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Glucose value
-                      _buildLabelRow('Glucose Value (mg/dL)', 'assets/images/glucose.png'),
+                      _buildLabel('Glucose Value (mg/dL)', 'assets/images/glucose.png'),
                       const SizedBox(height: 6),
                       _buildTextField(
                         controller: glucoseController,
@@ -111,38 +133,10 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Time
-                      _buildLabelRow('Time', 'assets/images/last injection.png'),
+                      _buildLabel('Time', 'assets/images/last injection.png'),
                       const SizedBox(height: 6),
                       GestureDetector(
-                        onTap: () async {
-                          final TimeOfDay? picked = await showTimePicker(
-                            context: context,
-                            initialTime: TimeOfDay.now(),
-                            builder: (BuildContext context, Widget? child) {
-                              return Theme(
-                                data: Theme.of(context).copyWith(
-                                  colorScheme: const ColorScheme.light(
-                                    primary: Color(0xFF4A7BF7),
-                                    onPrimary: Colors.white,
-                                    onSurface: Colors.black,
-                                  ),
-                                  timePickerTheme: TimePickerThemeData(
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.all(Radius.circular(16)),
-                                    ),
-                                  ),
-                                ),
-                                child: child!,
-                              );
-                            },
-                          );
-                          if (picked != null) {
-                            setState(() {
-                              selectedTime = picked;
-                            });
-                          }
-                        },
+                        onTap: _pickTime,
                         child: AbsorbPointer(
                           child: _buildTextField(
                             hintText: selectedTime != null
@@ -153,8 +147,7 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Context
-                      _buildLabelRow('Context', 'assets/images/context.png'),
+                      _buildLabel('Context', 'assets/images/context.png'),
                       const SizedBox(height: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -186,18 +179,15 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
                                 child: Text(value),
                               );
                             }).toList(),
-                            onChanged: (String? newValue) {
-                              setState(() {
-                                selectedContext = newValue;
-                              });
+                            onChanged: (newValue) {
+                              setState(() => selectedContext = newValue);
                             },
                           ),
                         ),
                       ),
                       const SizedBox(height: 24),
 
-                      // Note
-                      _buildLabelRow('Note', 'assets/images/note.png'),
+                      _buildLabel('Note', 'assets/images/note.png'),
                       const SizedBox(height: 6),
                       _buildTextField(
                         controller: noteController,
@@ -208,6 +198,7 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
                   ),
                 ),
               ),
+              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -246,8 +237,7 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
     );
   }
 
-  // Widget utilitaire pour les titres avec icônes
-  Widget _buildLabelRow(String text, String iconPath) {
+  Widget _buildLabel(String text, String iconPath) {
     return Row(
       children: [
         Image.asset(iconPath, width: 17, height: 17),
@@ -264,7 +254,6 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
     );
   }
 
-
   Widget _buildTextField({
     TextEditingController? controller,
     required String hintText,
@@ -275,7 +264,7 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
       controller: controller,
       maxLines: maxLines,
       keyboardType: keyboardType,
-      readOnly: controller == null, // Pour les champs simulés (comme time)
+      readOnly: controller == null,
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: const TextStyle(
