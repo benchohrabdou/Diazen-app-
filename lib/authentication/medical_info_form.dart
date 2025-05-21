@@ -1,14 +1,16 @@
 import 'package:diazen/classes/firestore_ops.dart';
 import 'package:diazen/classes/utilisateur.dart';
 import 'package:flutter/material.dart';
-import 'loginpage.dart';
-import 'package:intl/intl.dart'; // Add this import for date formatting
+import 'package:diazen/screens/mainscreen.dart'; // Import MainScreen instead of LoginPage
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MedicalInfoForm extends StatefulWidget {
   final String userId;
   final String email;
   final String firstName;
   final String lastName;
+  final VoidCallback? onComplete; // Add callback for navigation
 
   const MedicalInfoForm({
     super.key,
@@ -16,6 +18,7 @@ class MedicalInfoForm extends StatefulWidget {
     required this.email,
     required this.firstName,
     required this.lastName,
+    this.onComplete,
   });
 
   @override
@@ -27,15 +30,14 @@ class _MedicalInfoFormState extends State<MedicalInfoForm> {
   final FirestoreService _firestoreService = FirestoreService();
 
   final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _birthdayController =
-      TextEditingController(); // Birthday controller
+  final TextEditingController _birthdayController = TextEditingController();
   final TextEditingController _diabTypeController = TextEditingController();
   final TextEditingController _ratioController = TextEditingController();
   final TextEditingController _sensitivityController = TextEditingController();
   final TextEditingController _weightController = TextEditingController();
   final TextEditingController _heightController = TextEditingController();
 
-  DateTime? _selectedDate; // To store the selected date
+  DateTime? _selectedDate;
   bool _isLoading = false;
   String _errorMessage = '';
 
@@ -51,7 +53,6 @@ class _MedicalInfoFormState extends State<MedicalInfoForm> {
     super.dispose();
   }
 
-  // Function to show date picker
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -100,7 +101,7 @@ class _MedicalInfoFormState extends State<MedicalInfoForm> {
             id: widget.userId,
             nom: widget.lastName,
             prenom: widget.firstName,
-            dateNaissance: _selectedDate!, // Use the selected date
+            dateNaissance: _selectedDate!,
             email: widget.email,
             tel: _phoneController.text.trim(),
             diabType: int.parse(_diabTypeController.text.trim()),
@@ -112,19 +113,27 @@ class _MedicalInfoFormState extends State<MedicalInfoForm> {
           ),
         );
 
+        // Mark user as logged in
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('isLoggedIn', true);
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-                'Account setup complete! Please verify your email before logging in.'),
-            duration: Duration(seconds: 5),
+            content: Text('Account setup complete!'),
+            duration: Duration(seconds: 3),
           ),
         );
 
-        // Navigate to login page
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const Loginpage()),
-        );
+        // Use the callback if provided, otherwise navigate directly
+        if (widget.onComplete != null) {
+          widget.onComplete!();
+        } else {
+          // Navigate to main screen instead of login page
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const MainScreen()),
+          );
+        }
       } catch (e) {
         setState(() {
           _errorMessage = e.toString();
@@ -196,7 +205,6 @@ class _MedicalInfoFormState extends State<MedicalInfoForm> {
                 },
               ),
               const SizedBox(height: 16),
-              // Birthday Field
               TextFormField(
                 controller: _birthdayController,
                 decoration: InputDecoration(
@@ -209,7 +217,7 @@ class _MedicalInfoFormState extends State<MedicalInfoForm> {
                     onPressed: () => _selectDate(context),
                   ),
                 ),
-                readOnly: true, // Prevent manual editing
+                readOnly: true,
                 onTap: () => _selectDate(context),
                 validator: (value) {
                   if (value == null || value.isEmpty) {

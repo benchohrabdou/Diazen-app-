@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:diazen/classes/activite.dart';
 import 'package:diazen/classes/firestore_ops.dart';
@@ -6,6 +5,8 @@ import 'package:diazen/screens/activity_api_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
+import 'dart:async';
+import 'package:intl/intl.dart';
 
 class ActivityScreen extends StatefulWidget {
   const ActivityScreen({Key? key}) : super(key: key);
@@ -14,7 +15,8 @@ class ActivityScreen extends StatefulWidget {
   State<ActivityScreen> createState() => _ActivityScreenState();
 }
 
-class _ActivityScreenState extends State<ActivityScreen> {
+class _ActivityScreenState extends State<ActivityScreen>
+    with AutomaticKeepAliveClientMixin {
   final TextEditingController _searchController = TextEditingController();
   final ActivityApiService _activityApiService = ActivityApiService();
   final FirestoreService _firestoreService = FirestoreService();
@@ -23,17 +25,22 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
   bool _isBottomSheetOpen = false;
   bool _isLoading = false;
-  bool _isLoadingMore = false;
   String _errorMessage = '';
   double _userWeight = 70.0; // Default weight in kg
 
   // Activity search results
   List<Map<String, dynamic>> _searchResults = [];
 
-  // Activity history with pagination
-  List<Activite> _activityHistory = [];
-  DocumentSnapshot? _lastDocument;
-  bool _hasMoreActivities = true;
+  // Activity history
+  List<Map<String, dynamic>> _activityHistory =
+      []; // Changed to Map to include date
+
+  // Date filter
+  DateTime? _selectedDate;
+  final TextEditingController _dateFilterController = TextEditingController();
+
+  @override
+  bool get wantKeepAlive => true; // Keep state when switching tabs
 
   @override
   void initState() {
@@ -45,6 +52,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _dateFilterController.dispose();
     _debounce?.cancel();
     super.dispose();
   }
@@ -77,74 +85,97 @@ class _ActivityScreenState extends State<ActivityScreen> {
     }
   }
 
-  Future<void> _loadActivityHistory({bool loadMore = false}) async {
-    if (loadMore && (!_hasMoreActivities || _isLoadingMore)) return;
-
+  Future<void> _loadActivityHistory() async {
     setState(() {
-      if (!loadMore) _isLoading = true;
-      if (loadMore) _isLoadingMore = true;
+      _isLoading = true;
     });
 
     try {
       final User? currentUser = _auth.currentUser;
 
       if (currentUser != null) {
+        print('Loading activities for user: ${currentUser.uid}');
+
+        // Basic query - just get all activities for this user
         Query query = FirebaseFirestore.instance
             .collection('activities')
-            .where('userId', isEqualTo: currentUser.uid)
-            .orderBy('timestamp', descending: true)
-            .limit(10);
+            .where('userId', isEqualTo: currentUser.uid);
 
-        if (loadMore && _lastDocument != null) {
-          query = query.startAfterDocument(_lastDocument!);
+        // Apply date filter if selected
+        if (_selectedDate != null) {
+          final startOfDay = DateTime(
+              _selectedDate!.year, _selectedDate!.month, _selectedDate!.day);
+          final endOfDay = DateTime(_selectedDate!.year, _selectedDate!.month,
+              _selectedDate!.day, 23, 59, 59);
+
+          query = query.where('date',
+              isEqualTo: DateFormat('yyyy-MM-dd').format(_selectedDate!));
         }
 
-        final activitiesSnapshot = await query.get();
+        // No sorting, just get all activities
+        final QuerySnapshot activitiesSnapshot = await query.get();
 
-        if (activitiesSnapshot.docs.isEmpty) {
-          setState(() {
-            _hasMoreActivities = false;
-            _isLoading = false;
-            _isLoadingMore = false;
-          });
-          return;
+        print('Found ${activitiesSnapshot.docs.length} activities');
+
+        // Debug: Print all activities found
+        for (var doc in activitiesSnapshot.docs) {
+          print('Activity ID: ${doc.id}');
+          print('Activity data: ${doc.data()}');
         }
 
-        _lastDocument = activitiesSnapshot.docs.last;
+        final List<Map<String, dynamic>> activities = [];
 
-        final activities = activitiesSnapshot.docs.map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          return Activite(
-            nom: data['nom'],
-            cal30mn: data['cal30mn'],
-            typeAct: data['typeAct'],
-          );
-        }).toList();
+        for (var doc in activitiesSnapshot.docs) {
+          try {
+            final data = doc.data() as Map<String, dynamic>;
+            print('Processing activity: ${data['nom']}');
+
+            // Handle different data types for cal30mn
+            double calories = 0.0;
+            if (data['cal30mn'] != null) {
+              if (data['cal30mn'] is int) {
+                calories = (data['cal30mn'] as int).toDouble();
+              } else if (data['cal30mn'] is double) {
+                calories = data['cal30mn'] as double;
+              } else if (data['cal30mn'] is String) {
+                calories = double.tryParse(data['cal30mn'] as String) ?? 0.0;
+              }
+            }
+
+            // Store activity with date
+            activities.add({
+              'activity': Activite(
+                nom: data['nom'] ?? 'Unknown Activity',
+                cal30mn: calories,
+                typeAct: data['typeAct'] ?? 'exercise',
+              ),
+              'date': data['date'] ?? 'Unknown Date',
+              'time': data['time'] ?? 'Unknown Time',
+            });
+          } catch (e) {
+            print('Error parsing activity: $e');
+          }
+        }
+
+        print('Parsed ${activities.length} activities');
 
         setState(() {
-          if (loadMore) {
-            _activityHistory.addAll(activities);
-          } else {
-            _activityHistory = activities;
-          }
+          _activityHistory = activities;
           _isLoading = false;
-          _isLoadingMore = false;
         });
       }
     } catch (e) {
       print('Error loading activity history: $e');
+      print('Stack trace: ${StackTrace.current}');
       setState(() {
         _isLoading = false;
-        _isLoadingMore = false;
       });
     }
   }
 
   void _searchActivities(String query) {
-    // Cancel previous debounce timer
     if (_debounce?.isActive ?? false) _debounce!.cancel();
 
-    // Set up new timer
     _debounce = Timer(const Duration(milliseconds: 500), () {
       // Only search if query has at least 2 characters
       if (query.length >= 2) {
@@ -173,6 +204,43 @@ class _ActivityScreenState extends State<ActivityScreen> {
         });
       }
     });
+  }
+
+  Future<void> _selectDateFilter(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF4A7BF7),
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+        _dateFilterController.text = DateFormat('yyyy-MM-dd').format(picked);
+      });
+      _loadActivityHistory();
+    }
+  }
+
+  void _clearDateFilter() {
+    setState(() {
+      _selectedDate = null;
+      _dateFilterController.text = '';
+    });
+    _loadActivityHistory();
   }
 
   void _showAddActivitySheet(Map<String, dynamic> activityData) async {
@@ -206,11 +274,6 @@ class _ActivityScreenState extends State<ActivityScreen> {
         typeAct: 'exercise', // Default type
       );
 
-      // Add to local list
-      setState(() {
-        _activityHistory.insert(0, activity); // Add to beginning of list
-      });
-
       // Save to Firestore
       try {
         final User? currentUser = _auth.currentUser;
@@ -218,21 +281,63 @@ class _ActivityScreenState extends State<ActivityScreen> {
           final uuid = Uuid();
           final activityId = uuid.v4();
 
-          await _firestoreService.addDocument('activities', {
+          // Create timestamp from selected date and time
+          final timestamp = DateTime(
+            result['date'].year,
+            result['date'].month,
+            result['date'].day,
+            result['time'].hour,
+            result['time'].minute,
+          );
+
+          // Print debug information
+          print('Saving activity: ${activity.nom}, ID: $activityId');
+          print('User ID: ${currentUser.uid}');
+          print('Timestamp: $timestamp');
+
+          // Create activity data
+          final activityData = {
             'id': activityId,
             'userId': currentUser.uid,
             'nom': activity.nom,
             'cal30mn': activity.cal30mn,
             'typeAct': activity.typeAct,
             'duration': result['minutes'],
-            'timestamp': DateTime.now().toIso8601String(),
-          });
+            'date': DateFormat('yyyy-MM-dd').format(result['date']),
+            'time': '${result['time'].hour}:${result['time'].minute}',
+            'timestamp': timestamp,
+            'createdAt': FieldValue.serverTimestamp(), // Use server timestamp
+          };
+
+          print('Activity data to save: $activityData');
+
+          // Save directly to Firestore
+          await FirebaseFirestore.instance
+              .collection('activities')
+              .add(activityData);
+
+          print('Activity saved successfully to Firestore');
 
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Activity saved successfully')),
           );
+
+          // Clear search results after adding activity
+          setState(() {
+            _searchResults = [];
+            _searchController.clear();
+          });
+
+          // Add a small delay before refreshing
+          await Future.delayed(const Duration(milliseconds: 1500));
+          if (mounted) {
+            print('Reloading activity history after save');
+            _loadActivityHistory();
+          }
         }
       } catch (e) {
+        print('Error saving activity: $e');
+        print('Stack trace: ${StackTrace.current}');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error saving activity: $e')),
         );
@@ -242,8 +347,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // IMPORTANT: We're not creating a new Scaffold here
-    // This preserves the parent Scaffold that contains the bottom navigation bar
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
+
     return Stack(
       children: [
         Opacity(
@@ -309,7 +414,15 @@ class _ActivityScreenState extends State<ActivityScreen> {
                                       contentPadding:
                                           EdgeInsets.symmetric(horizontal: 12),
                                     ),
-                                    onChanged: _searchActivities,
+                                    onChanged: (value) {
+                                      if (value.length > 2) {
+                                        _searchActivities(value);
+                                      } else if (value.isEmpty) {
+                                        setState(() {
+                                          _searchResults = [];
+                                        });
+                                      }
+                                    },
                                   ),
                                 ),
                                 _isLoading
@@ -349,37 +462,57 @@ class _ActivityScreenState extends State<ActivityScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 8),
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[200],
-                                      borderRadius: BorderRadius.circular(12),
+                                  ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      maxHeight:
+                                          MediaQuery.of(context).size.height *
+                                              0.3,
                                     ),
-                                    child: ListView.builder(
-                                      shrinkWrap: true,
-                                      physics:
-                                          const NeverScrollableScrollPhysics(),
-                                      itemCount: _searchResults.length,
-                                      itemBuilder: (context, index) {
-                                        final activity = _searchResults[index];
-                                        return ListTile(
-                                          title: Text(
-                                            activity['name'],
-                                            style: const TextStyle(
-                                                fontFamily: 'SfProDisplay'),
-                                          ),
-                                          subtitle: Text(
-                                            '${activity['caloriesPer30Min'].toStringAsFixed(0)} kcal / 30 min',
-                                            style: const TextStyle(
-                                                fontFamily: 'SfProDisplay'),
-                                          ),
-                                          trailing: IconButton(
-                                            icon: const Icon(Icons.add_circle,
-                                                color: Color(0xFF4A7BF7)),
-                                            onPressed: () =>
-                                                _showAddActivitySheet(activity),
-                                          ),
-                                        );
-                                      },
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey[200],
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        child: ListView.builder(
+                                          shrinkWrap: true,
+                                          physics:
+                                              const AlwaysScrollableScrollPhysics(),
+                                          itemCount: _searchResults.length,
+                                          itemBuilder: (context, index) {
+                                            final activity =
+                                                _searchResults[index];
+                                            return ListTile(
+                                              title: Text(
+                                                activity['name'],
+                                                style: const TextStyle(
+                                                  fontFamily: 'SfProDisplay',
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              subtitle: Text(
+                                                '${activity['caloriesPer30Min'].toStringAsFixed(0)} kcal / 30 min',
+                                                style: const TextStyle(
+                                                  fontFamily: 'SfProDisplay',
+                                                ),
+                                              ),
+                                              trailing: SizedBox(
+                                                width: 40,
+                                                child: IconButton(
+                                                  icon: const Icon(
+                                                      Icons.add_circle,
+                                                      color: Color(0xFF4A7BF7)),
+                                                  onPressed: () =>
+                                                      _showAddActivitySheet(
+                                                          activity),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -398,59 +531,110 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
                           const SizedBox(height: 16),
 
-                          // Title "History"
-                          const Text(
-                            'History',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              fontFamily: 'SfProDisplay',
-                            ),
+                          // Date filter
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'History',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  fontFamily: 'SfProDisplay',
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 130,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[200],
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: GestureDetector(
+                                      onTap: () => _selectDateFilter(context),
+                                      child: AbsorbPointer(
+                                        child: TextField(
+                                          controller: _dateFilterController,
+                                          decoration: const InputDecoration(
+                                            hintText: 'Filter by date',
+                                            hintStyle: TextStyle(fontSize: 12),
+                                            border: InputBorder.none,
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
+                                                    vertical: 10),
+                                            suffixIcon: Icon(
+                                                Icons.calendar_today,
+                                                size: 16),
+                                          ),
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  if (_selectedDate != null)
+                                    IconButton(
+                                      icon: const Icon(Icons.clear, size: 16),
+                                      onPressed: _clearDateFilter,
+                                    ),
+                                ],
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 12),
 
-                          // Activity history list with pagination
+                          // Activity history list
                           Expanded(
                             child: _activityHistory.isEmpty && !_isLoading
                                 ? Center(
-                                    child: Text(
-                                      'No activities yet',
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontFamily: 'SfProDisplay',
-                                      ),
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.directions_run,
+                                          size: 48,
+                                          color: Colors.grey[400],
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          _selectedDate != null
+                                              ? 'No activities found for ${DateFormat('yyyy-MM-dd').format(_selectedDate!)}'
+                                              : 'No activities found',
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontFamily: 'SfProDisplay',
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Try a different date or add a new activity',
+                                          style: TextStyle(
+                                            color: Colors.grey[500],
+                                            fontFamily: 'SfProDisplay',
+                                            fontSize: 12,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ],
                                     ),
                                   )
-                                : NotificationListener<ScrollNotification>(
-                                    onNotification:
-                                        (ScrollNotification scrollInfo) {
-                                      if (scrollInfo.metrics.pixels ==
-                                              scrollInfo
-                                                  .metrics.maxScrollExtent &&
-                                          _hasMoreActivities &&
-                                          !_isLoadingMore) {
-                                        _loadActivityHistory(loadMore: true);
-                                      }
-                                      return true;
-                                    },
+                                : RefreshIndicator(
+                                    onRefresh: _loadActivityHistory,
                                     child: ListView.builder(
-                                      itemCount: _activityHistory.length +
-                                          (_hasMoreActivities ? 1 : 0),
+                                      itemCount: _activityHistory.length,
                                       itemBuilder: (context, index) {
-                                        if (index == _activityHistory.length) {
-                                          return _isLoadingMore
-                                              ? const Center(
-                                                  child: Padding(
-                                                    padding:
-                                                        EdgeInsets.all(8.0),
-                                                    child:
-                                                        CircularProgressIndicator(),
-                                                  ),
-                                                )
-                                              : const SizedBox.shrink();
-                                        }
+                                        final activityData =
+                                            _activityHistory[index];
+                                        final act = activityData['activity']
+                                            as Activite;
+                                        final date =
+                                            activityData['date'] as String;
+                                        final time =
+                                            activityData['time'] as String;
 
-                                        final act = _activityHistory[index];
                                         return Padding(
                                           padding: const EdgeInsets.only(
                                               bottom: 12.0),
@@ -521,6 +705,31 @@ class _ActivityScreenState extends State<ActivityScreen> {
                                                           ),
                                                         ],
                                                       ),
+                                                      const SizedBox(height: 4),
+                                                      // Add date and time
+                                                      Row(
+                                                        children: [
+                                                          const Icon(
+                                                            Icons
+                                                                .calendar_today,
+                                                            color: Colors.white,
+                                                            size: 14,
+                                                          ),
+                                                          const SizedBox(
+                                                              width: 4),
+                                                          Text(
+                                                            '$date - $time',
+                                                            style:
+                                                                const TextStyle(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontFamily:
+                                                                  'SfProDisplay',
+                                                              fontSize: 12,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
                                                     ],
                                                   ),
                                                 ),
@@ -544,65 +753,76 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
                           // "Add Activity" button - only show if no search results
                           if (_searchResults.isEmpty)
-                            GestureDetector(
-                              onTap: () async {
-                                final commonActivities =
-                                    await _activityApiService
-                                        .getCommonActivities();
-                                if (!mounted) return;
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    title: const Text('Common Activities'),
-                                    content: SizedBox(
-                                      width: double.maxFinite,
-                                      child: ListView.builder(
-                                        shrinkWrap: true,
-                                        itemCount: commonActivities.length,
-                                        itemBuilder: (context, index) {
-                                          return ListTile(
-                                            title:
-                                                Text(commonActivities[index]),
-                                            onTap: () {
-                                              _searchController.text =
-                                                  commonActivities[index];
-                                              _searchActivities(
-                                                  commonActivities[index]);
-                                              Navigator.pop(context);
-                                            },
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        child: const Text('Cancel'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
+                            // Add padding to fix overflow
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8.0),
                               child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[300],
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 16, horizontal: 24),
-                                child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.add, color: Colors.black),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'Add Activity',
-                                      style: TextStyle(
-                                        fontFamily: 'SfProDisplay',
-                                        fontWeight: FontWeight.bold,
+                                width: double.infinity,
+                                constraints:
+                                    const BoxConstraints(minHeight: 50),
+                                child: GestureDetector(
+                                  onTap: () async {
+                                    final commonActivities =
+                                        await _activityApiService
+                                            .getCommonActivities();
+                                    if (!mounted) return;
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: const Text('Common Activities'),
+                                        content: SizedBox(
+                                          width: double.maxFinite,
+                                          child: ListView.builder(
+                                            shrinkWrap: true,
+                                            itemCount: commonActivities.length,
+                                            itemBuilder: (context, index) {
+                                              return ListTile(
+                                                title: Text(
+                                                    commonActivities[index]),
+                                                onTap: () {
+                                                  _searchController.text =
+                                                      commonActivities[index];
+                                                  _searchActivities(
+                                                      commonActivities[index]);
+                                                  Navigator.pop(context);
+                                                },
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+                                            child: const Text('Cancel'),
+                                          ),
+                                        ],
                                       ),
+                                    );
+                                  },
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[300],
+                                      borderRadius: BorderRadius.circular(16),
                                     ),
-                                  ],
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 16, horizontal: 24),
+                                    child: const Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.add, color: Colors.black),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'Add Activity',
+                                          style: TextStyle(
+                                            fontFamily: 'SfProDisplay',
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -636,17 +856,96 @@ class _AddActivitySheet extends StatefulWidget {
 
 class _AddActivitySheetState extends State<_AddActivitySheet> {
   late TextEditingController _minutesController;
+  late TextEditingController _dateController;
+  late TextEditingController _timeController;
+
+  DateTime selectedDate = DateTime.now();
+  TimeOfDay selectedTime = TimeOfDay.now();
 
   @override
   void initState() {
     super.initState();
     _minutesController = TextEditingController(text: '30');
+    _dateController = TextEditingController(
+        text: DateFormat('yyyy-MM-dd').format(selectedDate));
+    // Initialize without context
+    _timeController = TextEditingController();
+
+    // Set the time text after the widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _timeController.text = selectedTime.format(context);
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
     _minutesController.dispose();
+    _dateController.dispose();
+    _timeController.dispose();
     super.dispose();
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF4A7BF7),
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && picked != selectedDate) {
+      setState(() {
+        selectedDate = picked;
+        _dateController.text = DateFormat('yyyy-MM-dd').format(selectedDate);
+      });
+    }
+  }
+
+  Future<void> _selectTime(BuildContext context) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: selectedTime,
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF4A7BF7),
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+            timePickerTheme: TimePickerThemeData(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(16)),
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        selectedTime = picked;
+        _timeController.text = selectedTime.format(context);
+      });
+    }
   }
 
   @override
@@ -705,6 +1004,91 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
               ),
             ],
           ),
+          const SizedBox(height: 16),
+
+          // Date selection
+          Row(
+            children: [
+              const Icon(Icons.calendar_today, size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'Date',
+                style: TextStyle(
+                  fontFamily: 'SfProDisplay',
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () => _selectDate(context),
+            child: AbsorbPointer(
+              child: TextField(
+                controller: _dateController,
+                readOnly: true,
+                decoration: InputDecoration(
+                  hintText: 'Select date',
+                  hintStyle: const TextStyle(
+                    fontFamily: 'SfProDisplay',
+                    color: Colors.black54,
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[300],
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Time selection
+          Row(
+            children: [
+              const Icon(Icons.access_time, size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'Time',
+                style: TextStyle(
+                  fontFamily: 'SfProDisplay',
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () => _selectTime(context),
+            child: AbsorbPointer(
+              child: TextField(
+                controller: _timeController,
+                readOnly: true,
+                decoration: InputDecoration(
+                  hintText: 'Select time',
+                  hintStyle: const TextStyle(
+                    fontFamily: 'SfProDisplay',
+                    color: Colors.black54,
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[300],
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
@@ -719,8 +1103,12 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
               onPressed: () {
                 int minutes = int.tryParse(_minutesController.text) ?? 30;
                 double totalCalories = widget.caloriesPerMinute * minutes;
-                Navigator.pop(
-                    context, {'minutes': minutes, 'calories': totalCalories});
+                Navigator.pop(context, {
+                  'minutes': minutes,
+                  'calories': totalCalories,
+                  'date': selectedDate,
+                  'time': selectedTime,
+                });
               },
               child: const Text(
                 'Add activity',
