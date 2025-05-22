@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:diazen/classes/glucose_log.dart';
 import 'package:intl/intl.dart';
+import 'package:diazen/classes/glucose_log.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -13,16 +13,35 @@ class _HistoryScreenState extends State<HistoryScreen> {
   final Map<String, Map<String, List<GlucoseLog>>> historyData = {
     'May 2025': {
       '2025-05-01': [
-        GlucoseLog(glucose: '112', time: '08:30 AM', context: 'Before meal', note: 'Light breakfast'),
-        GlucoseLog(glucose: '140', time: '01:00 PM', context: 'After meal', note: 'Heavy lunch'),
+        GlucoseLog(
+          glucose: '112',
+          time: '08:30 AM',
+          context: 'Before meal',
+          note: 'Light breakfast',
+        ),
+        GlucoseLog(
+          glucose: '140',
+          time: '01:00 PM',
+          context: 'After meal',
+          note: 'Heavy lunch',
+          dose: 4.0,
+        ),
       ],
       '2025-05-02': [
-        GlucoseLog(glucose: '130', time: '07:00 AM', context: 'Before meal'),
+        GlucoseLog(
+          glucose: '130',
+          time: '07:00 AM',
+          context: 'Before meal',
+        ),
       ],
     },
     'April 2025': {
       '2025-04-15': [
-        GlucoseLog(glucose: '125', time: '07:45 AM', context: 'Before meal'),
+        GlucoseLog(
+          glucose: '125',
+          time: '07:45 AM',
+          context: 'Before meal',
+        ),
       ],
     },
   };
@@ -54,7 +73,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final months = allMonths;
     final days = historyData[selectedMonth]?.keys.toList() ?? [];
 
     return Scaffold(
@@ -73,17 +91,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
         elevation: 0,
       ),
       body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Month selector
           SizedBox(
             height: 60,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              itemCount: months.length,
+              itemCount: allMonths.length,
               itemBuilder: (context, index) {
-                final month = months[index];
+                final month = allMonths[index];
                 final isSelected = month == selectedMonth;
 
                 return GestureDetector(
@@ -115,10 +131,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
               },
             ),
           ),
-
           const SizedBox(height: 10),
 
-          // Daily logs
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -140,44 +154,45 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         final logs = historyData[selectedMonth]![day]!;
 
                         return Card(
-                          margin: const EdgeInsets.only(bottom: 10),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          elevation: 2,
+                          margin: const EdgeInsets.only(bottom: 10),
                           color: const Color(0xFFEAF1FF),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  formatDate(day),
-                                  style: const TextStyle(
-                                    fontFamily: 'SfProDisplay',
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                ...logs.map((log) => Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 4),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text("🩸 Glucose: ${log.glucose} mg/dL",
-                                              style: const TextStyle(fontSize: 16,fontFamily: 'SfProDisplay')),
-                                          Text("🕓 Time: ${log.time}",
-                                              style: const TextStyle(fontSize: 16,fontFamily: 'SfProDisplay')),
-                                          Text("🍽️ Context: ${log.context}",
-                                              style: const TextStyle(fontSize: 16,fontFamily: 'SfProDisplay')),
-                                          if (log.note != null && log.note!.isNotEmpty)
-                                            Text("📝 Note: ${log.note}",
-                                                style: const TextStyle(fontSize: 16,fontFamily: 'SfProDisplay')),
-                                          const Divider(),
-                                        ],
-                                      ),
-                                    )),
-                              ],
+                          child: ExpansionTile(
+                            tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            title: Text(
+                              formatDate(day),
+                              style: const TextStyle(
+                                fontFamily: 'SfProDisplay',
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
+                            children: logs.map((log) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text("🩸 Glucose: ${log.glucose} mg/dL",
+                                        style: const TextStyle(fontSize: 16, fontFamily: 'SfProDisplay')),
+                                    Text("🕓 Time: ${log.time}",
+                                        style: const TextStyle(fontSize: 16, fontFamily: 'SfProDisplay')),
+                                    Text("🍽️ Context: ${log.context}",
+                                        style: const TextStyle(fontSize: 16, fontFamily: 'SfProDisplay')),
+                                    if (log.note != null && log.note!.isNotEmpty)
+                                      Text("📝 Note: ${log.note}",
+                                          style: const TextStyle(fontSize: 16, fontFamily: 'SfProDisplay')),
+                                    if (log.context == 'After meal' && log.dose != null)
+                                      Text("💉 Insulin Dose: ${log.dose!.toStringAsFixed(1)} U",
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontFamily: 'SfProDisplay',
+                                          )),
+                                    const Divider(),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
                           ),
                         );
                       },

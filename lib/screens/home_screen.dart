@@ -83,6 +83,64 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     }
   }
+    Future<void> _signOut() async {
+    await _auth.signOut();
+    if (!mounted) return;
+    Navigator.of(context).pushReplacementNamed('/login'); // Assure-toi que la route '/login' existe
+  }
+
+
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Logout',
+          style: TextStyle(
+            color: Color(0xFF4A7BF7),
+            fontFamily: 'SfProDisplay',
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: const Text(
+          'Do you really want to log out?',
+          style: TextStyle(
+            fontFamily: 'SfProDisplay',
+            color: Colors.black87,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(
+                color: Colors.black54,
+                fontFamily: 'SfProDisplay',
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _signOut();
+            },
+            child: const Text(
+              'Logout',
+              style: TextStyle(
+                color: Color(0xFF4A7BF7),
+                fontFamily: 'SfProDisplay',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -132,18 +190,31 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                       ],
                     ),
-                    IconButton(
+                    PopupMenuButton<String>(
                       icon: const Icon(
                         Icons.settings,
                         color: Color(0xFF4A7BF7),
                       ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const SettingsScreen()),
-                        );
+                      color: Colors.white,
+                      offset: const Offset(40, 40),
+                      onSelected: (value) {
+                        if (value == 'logout') {
+                          _showLogoutDialog();
+                        }
                       },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem<String>(
+                          value: 'logout',
+                          child: Text(
+                            'Logout',
+                            style: TextStyle(
+                              fontFamily: 'SfProDisplay',
+                              color: Color(0xFF4A7BF7),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -220,54 +291,58 @@ class _HomeScreenState extends State<HomeScreen> {
 
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 15.0),
-                child: Wrap(
-                  spacing: 16,
-                  runSpacing: 16,
-                  children: [
-                    CustomCard(
-                      text: 'Calculate dose insulin',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) =>
-                                  const CalculateDoseScreen()),
-                        );
-                      },
-                    ),
-                    CustomCard(
-                      text: 'Log glucose',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const LogGlucoseScreen()),
-                        );
-                      },
-                    ),
-                    CustomCard(
-                      text: 'Add meal',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const AddPlateScreen()),
-                        );
-                      },
-                    ),
-                    CustomCard(
-                      text: 'Check history',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) =>  HistoryScreen()),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
+                child: SizedBox(
+                  height: 340,
+                  child: GridView.count(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
+                    childAspectRatio: 1,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      CustomCard(
+                        text: 'Calculate dose insulin',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const CalculateDoseScreen()),
+                          );
+                        },
+                      ),
+                      CustomCard(
+                        text: 'Log glucose',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const LogGlucoseScreen()),
+                          );
+                        },
+                      ),
+                      CustomCard(
+                        text: 'Add meal',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const AddPlateScreen()),
+                          );
+                        },
+                      ),
+                      CustomCard(
+                        text: 'Check history',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => HistoryScreen()),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+              )),
 
               const SizedBox(height: 30),
 

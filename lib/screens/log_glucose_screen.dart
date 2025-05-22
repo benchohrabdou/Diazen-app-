@@ -212,22 +212,25 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text(
+          "Log Glucose",
+          style: TextStyle(
+            color: Color(0xFF4A7BF7),
+            fontWeight: FontWeight.bold,
+            fontSize: 24,
+            fontFamily: 'SfProDisplay',
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 15),
-              const Text(
-                "Log Glucose",
-                style: TextStyle(
-                  fontFamily: 'SfProDisplay',
-                  fontWeight: FontWeight.bold,
-                  fontSize: 24,
-                  color: Color(0xFF4A7BF7),
-                ),
-              ),
               const SizedBox(height: 20),
               Expanded(
                 child: SingleChildScrollView(
