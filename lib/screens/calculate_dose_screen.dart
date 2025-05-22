@@ -1,5 +1,6 @@
 import 'package:diazen/screens/activity_screen.dart';
 import 'package:diazen/screens/add_plate_screen.dart';
+import 'package:diazen/screens/dose_result_screen.dart';
 import 'package:flutter/material.dart';
 
 class CalculateDoseScreen extends StatefulWidget {
@@ -105,48 +106,58 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
     );
   }
 
-  void _saveLog() {
+  void _saveLog() async {
+    final glucoseText = glucoseController.text.trim();
+    final meal = mealController.text.trim().toLowerCase();
+
+    if (glucoseText.isEmpty || double.tryParse(glucoseText) == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Glycemia must be greater than zero.",
+            style: TextStyle(fontFamily: 'SfProDisplay'),
+          ),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSaving = true);
 
-    final glucose = double.tryParse(glucoseController.text) ?? 0;
-    final meal = mealController.text.trim().toLowerCase();
+    final glucose = double.parse(glucoseText);
+    final exists = await checkIfMealExists(meal);
+
+    if (!exists) {
+      _showCustomDialog(
+        title: "Meal not found",
+        content: "This meal doesn't exist. Do you want to create it?",
+        onContinue: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AddPlateScreen()),
+          );
+        },
+      );
+      setState(() => _isSaving = false);
+      return;
+    }
+
     final Map<String, double> mealCarbs = {
       'rice': 45,
       'chicken': 5,
       'bread': 30,
       'apple': 15,
     };
+
     final carbs = mealCarbs[meal] ?? 0;
     final dose = calculateDose(glucose, carbs);
 
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF4A7BF7),
-        title: const Text(
-          "Insulin Dose",
-          style: TextStyle(
-            fontFamily: 'SfProDisplay',
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Text(
-          "The recommended insulin dose is: ${dose.toStringAsFixed(1)} U",
-          style: const TextStyle(
-            fontFamily: 'SfProDisplay',
-            color: Colors.white,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              "OK",
-              style: TextStyle(fontFamily: 'SfProDisplay', color: Colors.white),
-            ),
-          ),
-        ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DoseResultScreen(dose: dose),
       ),
     );
 
@@ -214,113 +225,127 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
+      body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 15),
-            _buildLabel('Pre-meal glucose', 'assets/images/glucose.png'),
-            const SizedBox(height: 6),
-            _buildTextField(
-              controller: glucoseController,
-              hintText: 'Enter pre-meal blood sugar',
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Image.asset('assets/images/activity.png', height: 20, width: 20),
-                const SizedBox(width: 6),
-                const Text(
-                  'Unplanned activity was done?',
-                  style: TextStyle(
-                    fontFamily: 'SfProDisplay',
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                )
-              ],
-            ),
-            Row(
-              children: [
-                Radio<bool>(
-                  value: true,
-                  groupValue: unplannedActivity,
-                  onChanged: (value) {
-                    setState(() => unplannedActivity = value!);
-                    _handleUnplannedActivity();
-                  },
-                  fillColor: MaterialStateProperty.all(const Color(0xFF4A7BF7)),
-                ),
-                const Text('Yes', style: TextStyle(fontFamily: 'SfProDisplay')),
-                Radio<bool>(
-                  value: false,
-                  groupValue: unplannedActivity,
-                  onChanged: (value) => setState(() => unplannedActivity = value!),
-                ),
-                const Text('No', style: TextStyle(fontFamily: 'SfProDisplay')),
-              ],
-            ),
-            const SizedBox(height: 24),
-            _buildLabel('What did you eat', 'assets/images/context.png'),
-            const SizedBox(height: 6),
-            _buildTextField(
-              controller: mealController,
-              hintText: 'Enter meal name',
-            ),
-            const SizedBox(height: 24),
-            _buildLabel('Planned activity to do?', 'assets/images/plan.png'),
-            Row(
-              children: [
-                Radio<bool>(
-                  value: true,
-                  groupValue: plannedActivity,
-                  onChanged: (value) {
-                    setState(() => plannedActivity = value!);
-                    _handleUnplannedMeal();
-                  },
-                  fillColor: MaterialStateProperty.all(const Color(0xFF4A7BF7)),
-                ),
-                const Text('Yes', style: TextStyle(fontFamily: 'SfProDisplay')),
-                Radio<bool>(
-                  value: false,
-                  groupValue: plannedActivity,
-                  onChanged: (value) => setState(() => plannedActivity = value!),
-                ),
-                const Text('No', style: TextStyle(fontFamily: 'SfProDisplay')),
-              ],
-            ),
-            const SizedBox(height: 30),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isSaving ? null : _saveLog,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4A7BF7),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: _isSaving
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 15),
+                    _buildLabel('Pre-meal glucose', 'assets/images/glucose.png'),
+                    const SizedBox(height: 6),
+                    _buildTextField(
+                      controller: glucoseController,
+                      hintText: 'Enter pre-meal blood sugar',
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Image.asset('assets/images/activity.png', height: 20, width: 20),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Unplanned activity was done?',
+                          style: TextStyle(
+                            fontFamily: 'SfProDisplay',
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        )
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Radio<bool>(
+                          value: true,
+                          groupValue: unplannedActivity,
+                          onChanged: (value) {
+                            setState(() => unplannedActivity = value!);
+                            _handleUnplannedActivity();
+                          },
+                          fillColor: MaterialStateProperty.all(const Color(0xFF4A7BF7)),
                         ),
-                      )
-                    : const Text(
-                        'Calculate dose',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          fontFamily: 'SfProDisplay',
+                        const Text('Yes', style: TextStyle(fontFamily: 'SfProDisplay')),
+                        const SizedBox(width: 110),
+                        Radio<bool>(
+                          value: false,
+                          groupValue: unplannedActivity,
+                          onChanged: (value) => setState(() => unplannedActivity = value!),
+                          fillColor: MaterialStateProperty.all(const Color(0xFF4A7BF7)),
                         ),
-                      ),
+                        const Text('No', style: TextStyle(fontFamily: 'SfProDisplay')),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    _buildLabel('What did you eat', 'assets/images/context.png'),
+                    const SizedBox(height: 6),
+                    _buildTextField(
+                      controller: mealController,
+                      hintText: 'Enter meal name',
+                    ),
+                    const SizedBox(height: 24),
+                    _buildLabel('Planned activity to do?', 'assets/images/plan.png'),
+                    Row(
+                      children: [
+                        Radio<bool>(
+                          value: true,
+                          groupValue: plannedActivity,
+                          onChanged: (value) {
+                            setState(() => plannedActivity = value!);
+                            _handleUnplannedActivity();
+                          },
+                          fillColor: MaterialStateProperty.all(const Color(0xFF4A7BF7)),
+                        ),
+                        const Text('Yes', style: TextStyle(fontFamily: 'SfProDisplay')),
+                        const SizedBox(width: 110),
+                        Radio<bool>(
+                          value: false,
+                          groupValue: plannedActivity,
+                          onChanged: (value) => setState(() => plannedActivity = value!),
+                          fillColor: MaterialStateProperty.all(const Color(0xFF4A7BF7)),
+                        ),
+                        const Text('No', style: TextStyle(fontFamily: 'SfProDisplay')),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(25),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isSaving ? null : _saveLog,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4A7BF7),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: _isSaving
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Calculate dose',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            fontFamily: 'SfProDisplay',
+                          ),
+                        ),
+                ),
               ),
             ),
           ],
