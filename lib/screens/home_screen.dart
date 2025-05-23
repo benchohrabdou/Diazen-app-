@@ -8,6 +8,7 @@ import 'package:diazen/screens/history_screen.dart';
 import 'package:diazen/classes/firestore_ops.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:diazen/authentication/loginpage.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -86,7 +87,10 @@ class _HomeScreenState extends State<HomeScreen> {
     Future<void> _signOut() async {
     await _auth.signOut();
     if (!mounted) return;
-    Navigator.of(context).pushReplacementNamed('/login'); // Assure-toi que la route '/login' existe
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const Loginpage()),
+      (route) => false,
+    );
   }
 
 
