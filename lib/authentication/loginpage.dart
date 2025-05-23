@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:diazen/screens/mainscreen.dart';
 import 'package:diazen/authentication/social_auth_service.dart';
+import 'package:diazen/authentication/doctor_signin_screen.dart';
 
 class Loginpage extends StatefulWidget {
   const Loginpage({super.key});
@@ -371,6 +372,36 @@ class _LoginpageState extends State<Loginpage> {
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
+                              ),
+                              const SizedBox(height: 15),
+
+                              // Sign in as a doctor button
+                              ElevatedButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const DoctorSigninScreen(),
+                                    ),
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.black,
+                                  foregroundColor: Colors.white,
+                                  minimumSize: const Size(double.infinity, 50),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Sign in as a doctor',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontFamily: 'SfProDisplay',
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
                               const SizedBox(height: 15),
 
