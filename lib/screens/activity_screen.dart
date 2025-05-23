@@ -32,8 +32,7 @@ class _ActivityScreenState extends State<ActivityScreen>
   List<Map<String, dynamic>> _searchResults = [];
 
   // Activity history
-  List<Map<String, dynamic>> _activityHistory =
-      []; // Changed to Map to include date
+  List<Map<String, dynamic>> _activityHistory = [];
 
   // Date filter
   DateTime? _selectedDate;
@@ -103,11 +102,6 @@ class _ActivityScreenState extends State<ActivityScreen>
 
         // Apply date filter if selected
         if (_selectedDate != null) {
-          final startOfDay = DateTime(
-              _selectedDate!.year, _selectedDate!.month, _selectedDate!.day);
-          final endOfDay = DateTime(_selectedDate!.year, _selectedDate!.month,
-              _selectedDate!.day, 23, 59, 59);
-
           query = query.where('date',
               isEqualTo: DateFormat('yyyy-MM-dd').format(_selectedDate!));
         }
@@ -151,6 +145,8 @@ class _ActivityScreenState extends State<ActivityScreen>
               ),
               'date': data['date'] ?? 'Unknown Date',
               'time': data['time'] ?? 'Unknown Time',
+              'duration': data['duration'] ?? 30,
+              'docId': doc.id, // Store document ID for potential future use
             });
           } catch (e) {
             print('Error parsing activity: $e');
@@ -243,6 +239,65 @@ class _ActivityScreenState extends State<ActivityScreen>
     _loadActivityHistory();
   }
 
+  // Handle selection of existing activity from history
+  void _selectExistingActivity(Map<String, dynamic> activityData) {
+    final activity = activityData['activity'] as Activite;
+
+    // Create a format that matches what the search results would return
+    final formattedActivity = {
+      'name': activity.nom,
+      'caloriesPerHour': activity.cal30mn * 2, // Convert from 30min to hourly
+      'caloriesPerMinute': activity.cal30mn / 30, // Convert to per minute
+      'caloriesPer30Min': activity.cal30mn,
+    };
+
+    // Show confirmation dialog first
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF4A7BF7),
+          title: const Text(
+            'Reuse Activity',
+            style: TextStyle(
+              fontFamily: 'SfProDisplay',
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Text(
+            'Do you want to add "${activity.nom}" again?',
+            style: const TextStyle(
+              fontFamily: 'SfProDisplay',
+              color: Colors.white,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                "Cancel",
+                style:
+                    TextStyle(fontFamily: 'SfProDisplay', color: Colors.white),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _showAddActivitySheet(formattedActivity);
+              },
+              child: const Text(
+                "Add Activity",
+                style:
+                    TextStyle(fontFamily: 'SfProDisplay', color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _showAddActivitySheet(Map<String, dynamic> activityData) async {
     setState(() => _isBottomSheetOpen = true);
 
@@ -305,7 +360,7 @@ class _ActivityScreenState extends State<ActivityScreen>
             'duration': result['minutes'],
             'date': DateFormat('yyyy-MM-dd').format(result['date']),
             'time': '${result['time'].hour}:${result['time'].minute}',
-            'timestamp': timestamp,
+            'timestamp': Timestamp.fromDate(timestamp),
             'createdAt': FieldValue.serverTimestamp(), // Use server timestamp
           };
 
@@ -319,7 +374,13 @@ class _ActivityScreenState extends State<ActivityScreen>
           print('Activity saved successfully to Firestore');
 
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Activity saved successfully')),
+            const SnackBar(
+              content: Text(
+                'Activity saved successfully',
+                style: TextStyle(fontFamily: 'SfProDisplay'),
+              ),
+              backgroundColor: Colors.green,
+            ),
           );
 
           // Clear search results after adding activity
@@ -339,7 +400,13 @@ class _ActivityScreenState extends State<ActivityScreen>
         print('Error saving activity: $e');
         print('Stack trace: ${StackTrace.current}');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving activity: $e')),
+          SnackBar(
+            content: Text(
+              'Error saving activity: $e',
+              style: const TextStyle(fontFamily: 'SfProDisplay'),
+            ),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -361,8 +428,8 @@ class _ActivityScreenState extends State<ActivityScreen>
                   children: [
                     // App Bar
                     Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       color: Colors.white,
                       child: Row(
                         children: [
@@ -388,7 +455,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                         ],
                       ),
                     ),
-      
+
                     // Main Content
                     Expanded(
                       child: Padding(
@@ -409,11 +476,11 @@ class _ActivityScreenState extends State<ActivityScreen>
                                       controller: _searchController,
                                       decoration: const InputDecoration(
                                         hintText: 'Search for activity',
-                                        hintStyle:
-                                            TextStyle(fontFamily: 'SfProDisplay'),
+                                        hintStyle: TextStyle(
+                                            fontFamily: 'SfProDisplay'),
                                         border: InputBorder.none,
-                                        contentPadding:
-                                            EdgeInsets.symmetric(horizontal: 12),
+                                        contentPadding: EdgeInsets.symmetric(
+                                            horizontal: 12),
                                       ),
                                       onChanged: (value) {
                                         if (value.length > 2) {
@@ -445,7 +512,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                                 ],
                               ),
                             ),
-      
+
                             // Search results
                             if (_searchResults.isNotEmpty)
                               Padding(
@@ -491,7 +558,8 @@ class _ActivityScreenState extends State<ActivityScreen>
                                                   style: const TextStyle(
                                                     fontFamily: 'SfProDisplay',
                                                   ),
-                                                  overflow: TextOverflow.ellipsis,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                                 subtitle: Text(
                                                   '${activity['caloriesPer30Min'].toStringAsFixed(0)} kcal / 30 min',
@@ -504,7 +572,8 @@ class _ActivityScreenState extends State<ActivityScreen>
                                                   child: IconButton(
                                                     icon: const Icon(
                                                         Icons.add_circle,
-                                                        color: Color(0xFF4A7BF7)),
+                                                        color:
+                                                            Color(0xFF4A7BF7)),
                                                     onPressed: () =>
                                                         _showAddActivitySheet(
                                                             activity),
@@ -519,19 +588,22 @@ class _ActivityScreenState extends State<ActivityScreen>
                                   ],
                                 ),
                               ),
-      
+
                             if (_errorMessage.isNotEmpty)
                               Padding(
                                 padding:
                                     const EdgeInsets.symmetric(vertical: 8.0),
                                 child: Text(
                                   _errorMessage,
-                                  style: const TextStyle(color: Colors.red),
+                                  style: const TextStyle(
+                                    color: Colors.red,
+                                    fontFamily: 'SfProDisplay',
+                                  ),
                                 ),
                               ),
-      
+
                             const SizedBox(height: 16),
-      
+
                             // Date filter
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -561,7 +633,8 @@ class _ActivityScreenState extends State<ActivityScreen>
                                             controller: _dateFilterController,
                                             decoration: const InputDecoration(
                                               hintText: 'Filter by date',
-                                              hintStyle: TextStyle(fontSize: 12),
+                                              hintStyle:
+                                                  TextStyle(fontSize: 12),
                                               border: InputBorder.none,
                                               contentPadding:
                                                   EdgeInsets.symmetric(
@@ -570,7 +643,8 @@ class _ActivityScreenState extends State<ActivityScreen>
                                                   Icons.calendar_today,
                                                   size: 16),
                                             ),
-                                            style: const TextStyle(fontSize: 12),
+                                            style:
+                                                const TextStyle(fontSize: 12),
                                           ),
                                         ),
                                       ),
@@ -585,7 +659,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                               ],
                             ),
                             const SizedBox(height: 12),
-      
+
                             // Activity history list
                             Expanded(
                               child: _activityHistory.isEmpty && !_isLoading
@@ -635,115 +709,199 @@ class _ActivityScreenState extends State<ActivityScreen>
                                               activityData['date'] as String;
                                           final time =
                                               activityData['time'] as String;
-      
+
                                           return Padding(
                                             padding: const EdgeInsets.only(
                                                 bottom: 12.0),
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFF4A7BF7),
-                                                borderRadius:
-                                                    BorderRadius.circular(16),
-                                              ),
-                                              padding: const EdgeInsets.all(16),
-                                              child: Row(
-                                                children: [
-                                                  Expanded(
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
+                                            child: GestureDetector(
+                                              onTap: () =>
+                                                  _selectExistingActivity(
+                                                      activityData),
+                                              child: Container(
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      const Color(0xFF4A7BF7),
+                                                  borderRadius:
+                                                      BorderRadius.circular(16),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.black
+                                                          .withOpacity(0.1),
+                                                      blurRadius: 4,
+                                                      offset:
+                                                          const Offset(0, 2),
+                                                    ),
+                                                  ],
+                                                ),
+                                                padding:
+                                                    const EdgeInsets.all(16),
+                                                child: Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Row(
+                                                            children: [
+                                                              Expanded(
+                                                                child: Text(
+                                                                  act.nom,
+                                                                  style: const TextStyle(
+                                                                    color: Colors
+                                                                        .white,
+                                                                    fontFamily:
+                                                                        'SfProDisplay',
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
+                                                                    fontSize:
+                                                                        16,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                              IconButton(
+                                                                icon: const Icon(
+                                                                  Icons.delete_outline,
+                                                                  color: Colors.white70,
+                                                                ),
+                                                                onPressed: () async {
+                                                                  // Show confirmation dialog
+                                                                  final shouldDelete = await showDialog<bool>(
+                                                                    context: context,
+                                                                    builder: (context) => AlertDialog(
+                                                                      title: const Text(
+                                                                        'Delete Activity',
+                                                                        style: TextStyle(
+                                                                          fontFamily: 'SfProDisplay',
+                                                                          fontWeight: FontWeight.bold,
+                                                                        ),
+                                                                      ),
+                                                                      content: Text(
+                                                                        'Are you sure you want to delete "${act.nom}"?',
+                                                                        style: const TextStyle(
+                                                                          fontFamily: 'SfProDisplay',
+                                                                        ),
+                                                                      ),
+                                                                      actions: [
+                                                                        TextButton(
+                                                                          onPressed: () => Navigator.pop(context, false),
+                                                                          child: const Text('Cancel'),
+                                                                        ),
+                                                                        TextButton(
+                                                                          onPressed: () => Navigator.pop(context, true),
+                                                                          child: const Text(
+                                                                            'Delete',
+                                                                            style: TextStyle(color: Colors.red),
+                                                                          ),
+                                                                        ),
+                                                                      ],
+                                                                    ),
+                                                                  );
+
+                                                                  if (shouldDelete == true) {
+                                                                    try {
+                                                                      await FirebaseFirestore.instance
+                                                                          .collection('activities')
+                                                                          .doc(activityData['docId'])
+                                                                          .delete();
+                                                                      // Refresh the activity history
+                                                                      _loadActivityHistory();
+                                                                      if (mounted) {
+                                                                        ScaffoldMessenger.of(context).showSnackBar(
+                                                                          const SnackBar(
+                                                                            content: Text(
+                                                                              'Activity deleted successfully',
+                                                                              style: TextStyle(fontFamily: 'SfProDisplay'),
+                                                                            ),
+                                                                            backgroundColor: Colors.green,
+                                                                          ),
+                                                                        );
+                                                                      }
+                                                                    } catch (e) {
+                                                                      if (mounted) {
+                                                                        ScaffoldMessenger.of(context).showSnackBar(
+                                                                          SnackBar(
+                                                                            content: Text(
+                                                                              'Error deleting activity: $e',
+                                                                              style: const TextStyle(fontFamily: 'SfProDisplay'),
+                                                                            ),
+                                                                            backgroundColor: Colors.red,
+                                                                          ),
+                                                                        );
+                                                                      }
+                                                                    }
+                                                                  }
+                                                                },
+                                                              ),
+                                                            ],
+                                                          ),
+                                                          const SizedBox(
+                                                              height: 4),
+                                                          // Add date and time
+                                                          Row(
+                                                            children: [
+                                                              const Icon(
+                                                                Icons
+                                                                    .calendar_today,
+                                                                color: Colors
+                                                                    .white,
+                                                                size: 14,
+                                                              ),
+                                                              const SizedBox(
+                                                                  width: 4),
+                                                              Text(
+                                                                '$date - $time',
+                                                                style:
+                                                                    const TextStyle(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  fontFamily:
+                                                                      'SfProDisplay',
+                                                                  fontSize: 12,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    Column(
                                                       children: [
-                                                        Text(
-                                                          act.nom,
-                                                          style: const TextStyle(
+                                                        Container(
+                                                          decoration:
+                                                              const BoxDecoration(
                                                             color: Colors.white,
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                            fontSize: 16,
+                                                            shape:
+                                                                BoxShape.circle,
+                                                          ),
+                                                          child: const Icon(
+                                                              Icons.check,
+                                                              color: Color(
+                                                                  0xFF4A7BF7)),
+                                                        ),
+                                                        const SizedBox(
+                                                            height: 8),
+                                                        const Icon(
+                                                          Icons.touch_app,
+                                                          color: Colors.white70,
+                                                          size: 16,
+                                                        ),
+                                                        const Text(
+                                                          'Tap to reuse',
+                                                          style: TextStyle(
+                                                            color:
+                                                                Colors.white70,
+                                                            fontSize: 10,
                                                             fontFamily:
                                                                 'SfProDisplay',
                                                           ),
                                                         ),
-                                                        const SizedBox(height: 4),
-                                                        Row(
-                                                          children: [
-                                                            const Icon(
-                                                              Icons
-                                                                  .local_fire_department,
-                                                              color: Colors.white,
-                                                              size: 16,
-                                                            ),
-                                                            const SizedBox(
-                                                                width: 4),
-                                                            Text(
-                                                              '${act.cal30mn.toInt()} Kcal',
-                                                              style:
-                                                                  const TextStyle(
-                                                                color:
-                                                                    Colors.white,
-                                                                fontFamily:
-                                                                    'SfProDisplay',
-                                                              ),
-                                                            ),
-                                                            const SizedBox(
-                                                                width: 10),
-                                                            const Text('.',
-                                                                style: TextStyle(
-                                                                    color: Colors
-                                                                        .white)),
-                                                            const SizedBox(
-                                                                width: 6),
-                                                            Text(
-                                                              '30 min',
-                                                              style:
-                                                                  const TextStyle(
-                                                                color:
-                                                                    Colors.white,
-                                                                fontFamily:
-                                                                    'SfProDisplay',
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                        const SizedBox(height: 4),
-                                                        // Add date and time
-                                                        Row(
-                                                          children: [
-                                                            const Icon(
-                                                              Icons
-                                                                  .calendar_today,
-                                                              color: Colors.white,
-                                                              size: 14,
-                                                            ),
-                                                            const SizedBox(
-                                                                width: 4),
-                                                            Text(
-                                                              '$date - $time',
-                                                              style:
-                                                                  const TextStyle(
-                                                                color:
-                                                                    Colors.white,
-                                                                fontFamily:
-                                                                    'SfProDisplay',
-                                                                fontSize: 12,
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
                                                       ],
                                                     ),
-                                                  ),
-                                                  Container(
-                                                    decoration:
-                                                        const BoxDecoration(
-                                                      color: Colors.white,
-                                                      shape: BoxShape.circle,
-                                                    ),
-                                                    child: const Icon(Icons.check,
-                                                        color: Color(0xFF4A7BF7)),
-                                                  ),
-                                                ],
+                                                  ],
+                                                ),
                                               ),
                                             ),
                                           );
@@ -751,7 +909,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                                       ),
                                     ),
                             ),
-      
+
                             // "Add Activity" button - only show if no search results
                             if (_searchResults.isEmpty)
                               // Add padding to fix overflow
@@ -770,21 +928,34 @@ class _ActivityScreenState extends State<ActivityScreen>
                                       showDialog(
                                         context: context,
                                         builder: (context) => AlertDialog(
-                                          title: const Text('Common Activities'),
+                                          title: const Text(
+                                            'Common Activities',
+                                            style: TextStyle(
+                                              fontFamily: 'SfProDisplay',
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
                                           content: SizedBox(
                                             width: double.maxFinite,
                                             child: ListView.builder(
                                               shrinkWrap: true,
-                                              itemCount: commonActivities.length,
+                                              itemCount:
+                                                  commonActivities.length,
                                               itemBuilder: (context, index) {
                                                 return ListTile(
                                                   title: Text(
-                                                      commonActivities[index]),
+                                                    commonActivities[index],
+                                                    style: const TextStyle(
+                                                      fontFamily:
+                                                          'SfProDisplay',
+                                                    ),
+                                                  ),
                                                   onTap: () {
                                                     _searchController.text =
                                                         commonActivities[index];
                                                     _searchActivities(
-                                                        commonActivities[index]);
+                                                        commonActivities[
+                                                            index]);
                                                     Navigator.pop(context);
                                                   },
                                                 );
@@ -795,7 +966,12 @@ class _ActivityScreenState extends State<ActivityScreen>
                                             TextButton(
                                               onPressed: () =>
                                                   Navigator.pop(context),
-                                              child: const Text('Cancel'),
+                                              child: const Text(
+                                                'Cancel',
+                                                style: TextStyle(
+                                                  fontFamily: 'SfProDisplay',
+                                                ),
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -931,7 +1107,7 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
               onPrimary: Colors.white,
               onSurface: Colors.black,
             ),
-            timePickerTheme: TimePickerThemeData(
+            timePickerTheme: const TimePickerThemeData(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.all(Radius.circular(16)),
               ),

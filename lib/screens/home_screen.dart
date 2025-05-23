@@ -8,6 +8,8 @@ import 'package:diazen/screens/history_screen.dart';
 import 'package:diazen/classes/firestore_ops.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,10 +21,17 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   String _userName = '';
   bool _isLoading = true;
   String _errorMessage = '';
+
+  // Last operations
+  String _lastGlucose = 'N/A';
+  String _lastInjection = 'N/A';
+  String _lastMeal = 'N/A';
+  String _lastMealTime = 'N/A';
 
   @override
   void initState() {
@@ -44,7 +53,6 @@ class _HomeScreenState extends State<HomeScreen> {
       if (cachedName != null && cachedName.isNotEmpty) {
         setState(() {
           _userName = cachedName;
-          _isLoading = false;
         });
       }
 
@@ -55,31 +63,129 @@ class _HomeScreenState extends State<HomeScreen> {
             await _firestoreService.getDocument('users', currentUser.uid);
         if (userDoc.exists) {
           final userData = userDoc.data() as Map<String, dynamic>;
+          print('User document found: ' + userData.toString());
           final name = userData['prenom'] ?? '';
 
           // Update cache
           await prefs.setString('userName', name);
 
+          // Get last operations
+          final lastOperations =
+              userData['lastOperations'] as Map<String, dynamic>? ?? {};
+          print('Last operations data: ' + lastOperations.toString());
+
+          // Get glucose values from both injection and glucose log
+          DateTime? lastGlucoseTime;
+          String? lastGlucoseValue;
+
+          // Check glucose log
+          if (lastOperations.containsKey('glucose')) {
+            final glucoseData =
+                lastOperations['glucose'] as Map<String, dynamic>? ?? {};
+            if (glucoseData.containsKey('timestamp')) {
+              try {
+                final timestamp = DateTime.parse(glucoseData['timestamp']);
+                lastGlucoseTime = timestamp;
+                lastGlucoseValue = glucoseData['value']?.toString();
+                print('Found glucose log: $lastGlucoseValue at $lastGlucoseTime');
+              } catch (e) {
+                print('Error parsing glucose timestamp: $e');
+              }
+            }
+          }
+
+          // Check injection glucose
+          if (lastOperations.containsKey('injection')) {
+            final injectionData =
+                lastOperations['injection'] as Map<String, dynamic>? ?? {};
+            if (injectionData.containsKey('timestamp')) {
+              try {
+                final timestamp = DateTime.parse(injectionData['timestamp']);
+                // Only update if this is more recent than the glucose log
+                if (lastGlucoseTime == null || timestamp.isAfter(lastGlucoseTime)) {
+                  lastGlucoseTime = timestamp;
+                  lastGlucoseValue = injectionData['glucoseValue']?.toString();
+                  print('Found injection glucose: $lastGlucoseValue at $lastGlucoseTime');
+                }
+              } catch (e) {
+                print('Error parsing injection timestamp: $e');
+              }
+            }
+          }
+
+          // Set the most recent glucose value
+          _lastGlucose = lastGlucoseValue ?? 'N/A';
+          print('Final glucose value to display: $_lastGlucose');
+
+          // Get injection
+          if (lastOperations.containsKey('injection')) {
+            final injectionData =
+                lastOperations['injection'] as Map<String, dynamic>? ?? {};
+            _lastInjection = injectionData['value']?.toString() ?? 'N/A';
+            print('Loaded last injection: $_lastInjection');
+          }
+
+          // Get meal
+          if (lastOperations.containsKey('meal')) {
+            final mealData =
+                lastOperations['meal'] as Map<String, dynamic>? ?? {};
+            _lastMeal = mealData['value']?.toString() ?? 'N/A';
+             print('Loaded last meal: $_lastMeal');
+
+            // Format time
+            if (mealData.containsKey('timestamp')) {
+              try {
+                final timestamp = DateTime.parse(mealData['timestamp']);
+                final now = DateTime.now();
+                final difference = now.difference(timestamp);
+
+                if (difference.inMinutes < 60) {
+                  _lastMealTime = '${difference.inMinutes}m ago';
+                } else if (difference.inHours < 24) {
+                  _lastMealTime = '${difference.inHours}h ago';
+                } else {
+                  _lastMealTime = '${difference.inDays}d ago';
+                }
+                 print('Loaded last meal time: $_lastMealTime');
+              } catch (e) {
+                 print('Error parsing last meal timestamp: $e');
+                 _lastMealTime = 'Invalid Time';
+              }
+            } else {
+              _lastMealTime = 'N/A';
+               print('Last meal timestamp missing.');
+            }
+          } else {
+             print('Last meal data missing.');
+             _lastMeal = 'N/A';
+             _lastMealTime = 'N/A';
+          }
+
           setState(() {
             _userName = name;
-            _isLoading = false;
+             print('Home screen state updated with user name.');
           });
         } else {
           setState(() {
             _errorMessage = 'User data not found';
-            _isLoading = false;
+             print('User data document not found.');
           });
         }
       } else {
         setState(() {
           _errorMessage = 'No user logged in';
-          _isLoading = false;
+           print('No user logged in.');
         });
       }
     } catch (e) {
       setState(() {
         _errorMessage = 'Error loading user data: $e';
+         print('Error loading user data: $e');
+      });
+    } finally {
+      setState(() {
         _isLoading = false;
+         print('Finished loading user data. isLoading set to false.');
       });
     }
   }
@@ -89,254 +195,258 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 30),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 15),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 25.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "Hello,",
-                          style: TextStyle(
-                              fontFamily: 'SfProDisplay',
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 4),
-                        _isLoading
-                            ? const SizedBox(
-                                height: 24,
-                                width: 120,
-                                child: LinearProgressIndicator(
-                                  backgroundColor: Colors.grey,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Color(0xFF4A7BF7),
-                                  ),
-                                ),
-                              )
-                            : Text(
-                                _userName.isEmpty ? "User" : _userName,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontFamily: 'SfProDisplay',
-                                    color: Color(0xFF4A7BF7),
-                                    fontSize: 24),
-                              ),
-                      ],
-                    ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.settings,
-                        color: Color(0xFF4A7BF7),
-                      ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const SettingsScreen()),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-
-              // Last operations container
-              Padding(
-                padding: const EdgeInsets.all(15.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-  height: 200,
-  decoration: BoxDecoration(
-    borderRadius: BorderRadius.circular(20),
-    color: const Color(0xFF4A7BF7), // Bleu primaire pur
-  ),
-  child: Container(
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(20),
-      gradient: LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          Colors.black.withOpacity(0.25),
-          Colors.black.withOpacity(0.1),
-        ],
-      ),
-    ),
-    padding: const EdgeInsets.all(16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        const Text(
-          'Last Operations',
-          style: TextStyle(
-            fontFamily: 'SfProDisplay',
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildOperationItem(
-              icon: Icons.monitor_heart,
-              label: 'Glucose',
-              value: '120 mg/dL',
-            ),
-            _buildOperationItem(
-              icon: Icons.medical_services,
-              label: 'Injection',
-              value: '8 units',
-            ),
-            _buildOperationItem(
-              icon: Icons.restaurant,
-              label: 'Last Meal',
-              value: '2h ago',
-            ),
-          ],
-        ),
-      ],
-    ),
-  ),
-)
-
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 15.0),
-                child: Wrap(
-                  spacing: 16,
-                  runSpacing: 16,
-                  children: [
-                    CustomCard(
-                      text: 'Calculate dose insulin',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) =>
-                                  const CalculateDoseScreen()),
-                        );
-                      },
-                    ),
-                    CustomCard(
-                      text: 'Log glucose',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const LogGlucoseScreen()),
-                        );
-                      },
-                    ),
-                    CustomCard(
-                      text: 'Add meal',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const AddPlateScreen()),
-                        );
-                      },
-                    ),
-                    CustomCard(
-                      text: 'Check history',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) =>  HistoryScreen()),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEEF4FF),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 10,
-                        offset: Offset(0, 4),
-                      )
-                    ],
-                  ),
+        child: RefreshIndicator(
+          onRefresh: _loadUserData,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 30),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 15),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 25.0),
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const CircleAvatar(
-                        radius: 30,
-                        backgroundColor: Color(0xFF4A7BF7),
-                        child: Icon(
-                          Icons.smart_toy_rounded,
-                          color: Colors.white,
-                          size: 30,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Your AI Assistant",
-                              style: TextStyle(
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Hello,",
+                            style: TextStyle(
                                 fontFamily: 'SfProDisplay',
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF4A7BF7),
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              "How can I help you today?",
-                              style: TextStyle(
-                                fontFamily: 'SfProDisplay',
-                                fontSize: 14,
-                                color: Colors.black54,
-                              ),
-                            ),
-                          ],
-                        ),
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          _isLoading
+                              ? const SizedBox(
+                                  height: 24,
+                                  width: 120,
+                                  child: LinearProgressIndicator(
+                                    backgroundColor: Colors.grey,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Color(0xFF4A7BF7),
+                                    ),
+                                  ),
+                                )
+                              : Text(
+                                  _userName.isEmpty ? "User" : _userName,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontFamily: 'SfProDisplay',
+                                      color: Color(0xFF4A7BF7),
+                                      fontSize: 24),
+                                ),
+                        ],
                       ),
                       IconButton(
                         icon: const Icon(
-                          Icons.arrow_forward_ios,
+                          Icons.settings,
                           color: Color(0xFF4A7BF7),
                         ),
                         onPressed: () {
-                          // TODO: Add navigation to assistant screen
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const SettingsScreen()),
+                          );
                         },
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Last operations container
+                Padding(
+                  padding: const EdgeInsets.all(15.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        height: 200,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: const Color(0xFF4A7BF7), // Bleu primaire pur
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.black.withOpacity(0.25),
+                                Colors.black.withOpacity(0.1),
+                              ],
+                            ),
+                          ),
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Last Operations',
+                                style: TextStyle(
+                                  fontFamily: 'SfProDisplay',
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  _buildOperationItem(
+                                    icon: Icons.monitor_heart,
+                                    label: 'Glucose',
+                                    value: _lastGlucose,
+                                  ),
+                                  _buildOperationItem(
+                                    icon: Icons.medical_services,
+                                    label: 'Injection',
+                                    value: _lastInjection,
+                                  ),
+                                  _buildOperationItem(
+                                    icon: Icons.restaurant,
+                                    label: 'Last Meal',
+                                    value: _lastMealTime,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
                       )
                     ],
                   ),
                 ),
-              ),
-            ],
+
+                const SizedBox(height: 16),
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 15.0),
+                  child: Wrap(
+                    spacing: 16,
+                    runSpacing: 16,
+                    children: [
+                      CustomCard(
+                        text: 'Calculate dose insulin',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    const CalculateDoseScreen()),
+                          ).then((_) => _loadUserData());
+                        },
+                      ),
+                      CustomCard(
+                        text: 'Log glucose',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const LogGlucoseScreen()),
+                          ).then((_) => _loadUserData());
+                        },
+                      ),
+                      CustomCard(
+                        text: 'Add meal',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const AddPlateScreen()),
+                          ).then((_) => _loadUserData());
+                        },
+                      ),
+                      CustomCard(
+                        text: 'Check history',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const HistoryScreen()),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 30),
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEEF4FF),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 10,
+                          offset: Offset(0, 4),
+                        )
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        const CircleAvatar(
+                          radius: 30,
+                          backgroundColor: Color(0xFF4A7BF7),
+                          child: Icon(
+                            Icons.smart_toy_rounded,
+                            color: Colors.white,
+                            size: 30,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Your AI Assistant",
+                                style: TextStyle(
+                                  fontFamily: 'SfProDisplay',
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF4A7BF7),
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                "How can I help you today?",
+                                style: TextStyle(
+                                  fontFamily: 'SfProDisplay',
+                                  fontSize: 14,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.arrow_forward_ios,
+                            color: Color(0xFF4A7BF7),
+                          ),
+                          onPressed: () {
+                            // TODO: Add navigation to assistant screen
+                          },
+                        )
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -348,6 +458,20 @@ class _HomeScreenState extends State<HomeScreen> {
     required String label,
     required String value,
   }) {
+    String displayValue = value;
+    if (label == 'Glucose' && value != 'N/A') {
+      // Ensure glucose is displayed as a string, handling potential non-string values
+       displayValue = value.toString();
+    } else if (label == 'Injection' && value != 'N/A') {
+      // Convert injection value to integer
+      final double? injectionDouble = double.tryParse(value);
+      if (injectionDouble != null) {
+        displayValue = injectionDouble.round().toString();
+      } else {
+        displayValue = 'N/A';
+      }
+    }
+
     return Column(
       children: [
         Icon(icon, color: Colors.white, size: 30),
@@ -362,7 +486,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: 4),
         Text(
-          value,
+          displayValue,
           style: const TextStyle(
             fontFamily: 'SfProDisplay',
             color: Colors.white,
