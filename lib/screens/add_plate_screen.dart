@@ -174,7 +174,7 @@ class _AddPlateScreenState extends State<AddPlateScreen> {
                 'name': ingredient['name'],
                 'glucidesPer100g': ingredient['carbs'],
                 'quantity': ingredient['quantity'],
-                'totalCarbs': ingredient['totalCarbs'],
+                'totalCarbs': (ingredient['totalCarbs'] ?? 0.0),
               })
           .toList();
 
@@ -212,6 +212,24 @@ class _AddPlateScreenState extends State<AddPlateScreen> {
         _isSaving = false;
       });
     }
+  }
+
+  void _showBolChinoisInfo() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Le Bol Chinois Method'),
+        content: const Text(
+          'The quantity of the meal is calculated based on the "Le Bol Chinois" method, which estimates portion sizes using a standard bowl. This helps in calculating carbohydrate intake more accurately for insulin dosage.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -643,6 +661,13 @@ class _AddPlateScreenState extends State<AddPlateScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _platenamecontroller.dispose();
+    _ingredientcontroler.dispose();
+    super.dispose();
   }
 }
 
