@@ -198,24 +198,25 @@ class _AddPlateScreenState extends State<AddPlateScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text(
+          "Create Your Plate",
+          style: TextStyle(
+            color: Color(0xFF4A7BF7),
+            fontWeight: FontWeight.bold,
+            fontSize: 24,
+            fontFamily: 'SfProDisplay',
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.only(right: 25, left: 25),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 15),
-              const Row(mainAxisAlignment: MainAxisAlignment.start, children: [
-                Text(
-                  'Create Your Plate',
-                  style: TextStyle(
-                    fontFamily: 'SfProDisplay',
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF4A7BF7),
-                    fontSize: 25,
-                  ),
-                )
-              ]),
               const SizedBox(height: 20),
               const Text('Plate name',
                   style: TextStyle(

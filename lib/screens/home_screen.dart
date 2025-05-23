@@ -87,7 +87,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 final timestamp = DateTime.parse(glucoseData['timestamp']);
                 lastGlucoseTime = timestamp;
                 lastGlucoseValue = glucoseData['value']?.toString();
-                print('Found glucose log: $lastGlucoseValue at $lastGlucoseTime');
+                print(
+                    'Found glucose log: $lastGlucoseValue at $lastGlucoseTime');
               } catch (e) {
                 print('Error parsing glucose timestamp: $e');
               }
@@ -102,10 +103,12 @@ class _HomeScreenState extends State<HomeScreen> {
               try {
                 final timestamp = DateTime.parse(injectionData['timestamp']);
                 // Only update if this is more recent than the glucose log
-                if (lastGlucoseTime == null || timestamp.isAfter(lastGlucoseTime)) {
+                if (lastGlucoseTime == null ||
+                    timestamp.isAfter(lastGlucoseTime)) {
                   lastGlucoseTime = timestamp;
                   lastGlucoseValue = injectionData['glucoseValue']?.toString();
-                  print('Found injection glucose: $lastGlucoseValue at $lastGlucoseTime');
+                  print(
+                      'Found injection glucose: $lastGlucoseValue at $lastGlucoseTime');
                 }
               } catch (e) {
                 print('Error parsing injection timestamp: $e');
@@ -130,7 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
             final mealData =
                 lastOperations['meal'] as Map<String, dynamic>? ?? {};
             _lastMeal = mealData['value']?.toString() ?? 'N/A';
-             print('Loaded last meal: $_lastMeal');
+            print('Loaded last meal: $_lastMeal');
 
             // Format time
             if (mealData.containsKey('timestamp')) {
@@ -146,46 +149,46 @@ class _HomeScreenState extends State<HomeScreen> {
                 } else {
                   _lastMealTime = '${difference.inDays}d ago';
                 }
-                 print('Loaded last meal time: $_lastMealTime');
+                print('Loaded last meal time: $_lastMealTime');
               } catch (e) {
-                 print('Error parsing last meal timestamp: $e');
-                 _lastMealTime = 'Invalid Time';
+                print('Error parsing last meal timestamp: $e');
+                _lastMealTime = 'Invalid Time';
               }
             } else {
               _lastMealTime = 'N/A';
-               print('Last meal timestamp missing.');
+              print('Last meal timestamp missing.');
             }
           } else {
-             print('Last meal data missing.');
-             _lastMeal = 'N/A';
-             _lastMealTime = 'N/A';
+            print('Last meal data missing.');
+            _lastMeal = 'N/A';
+            _lastMealTime = 'N/A';
           }
 
           setState(() {
             _userName = name;
-             print('Home screen state updated with user name.');
+            print('Home screen state updated with user name.');
           });
         } else {
           setState(() {
             _errorMessage = 'User data not found';
-             print('User data document not found.');
+            print('User data document not found.');
           });
         }
       } else {
         setState(() {
           _errorMessage = 'No user logged in';
-           print('No user logged in.');
+          print('No user logged in.');
         });
       }
     } catch (e) {
       setState(() {
         _errorMessage = 'Error loading user data: $e';
-         print('Error loading user data: $e');
+        print('Error loading user data: $e');
       });
     } finally {
       setState(() {
         _isLoading = false;
-         print('Finished loading user data. isLoading set to false.');
+        print('Finished loading user data. isLoading set to false.');
       });
     }
   }
@@ -461,7 +464,7 @@ class _HomeScreenState extends State<HomeScreen> {
     String displayValue = value;
     if (label == 'Glucose' && value != 'N/A') {
       // Ensure glucose is displayed as a string, handling potential non-string values
-       displayValue = value.toString();
+      displayValue = value.toString();
     } else if (label == 'Injection' && value != 'N/A') {
       // Convert injection value to integer
       final double? injectionDouble = double.tryParse(value);

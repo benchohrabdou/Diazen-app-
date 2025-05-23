@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:diazen/classes/glucose_log.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -349,7 +350,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
       case 'injection':
         // Convert the dose value to an integer for display
-        final int doseInt = double.tryParse(item['value'] as String? ?? '0')?.round() ?? 0;
+        final int doseInt =
+            double.tryParse(item['value'] as String? ?? '0')?.round() ?? 0;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
