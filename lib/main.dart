@@ -18,8 +18,19 @@ class MyApp extends StatelessWidget {
       title: 'Diazen',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primaryColor: const Color(0xFF4A7BF7),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF4A7BF7),
+          primary: const Color(0xFF4A7BF7),
+        ),
         fontFamily: 'SfProDisplay',
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(color: Colors.black87),
+          bodyMedium: TextStyle(color: Colors.black87),
+          titleLarge: TextStyle(color: Color(0xFF4A7BF7)),
+          headlineLarge: TextStyle(color: Color(0xFF4A7BF7)),
+          headlineMedium: TextStyle(color: Color(0xFF4A7BF7)),
+        ),
       ),
       home: const Loginpage(),
     );

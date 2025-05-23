@@ -419,7 +419,21 @@ class _ActivityScreenState extends State<ActivityScreen>
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Activities'),
+        title: const Text(
+          'Add Activity',
+          style: TextStyle(
+            color: Color(0xFF4A7BF7),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF4A7BF7)),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
       ),
       body: Stack(
         children: [

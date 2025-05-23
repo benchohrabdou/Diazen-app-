@@ -28,7 +28,7 @@ class _PasswordResetSucceesScreenState extends State<PasswordResetSucceesScreen>
                   fontFamily: 'SfProDisplay',
                   fontSize: 24,
                   fontWeight: FontWeight.w600,
-                  color: Colors.black,
+                  color: Color(0xFF4A7BF7),
                 ),
               ),
               const SizedBox(height: 8),
@@ -37,7 +37,7 @@ class _PasswordResetSucceesScreenState extends State<PasswordResetSucceesScreen>
                 style: TextStyle(
                   fontFamily: 'SfProDisplay',
                   fontSize: 14,
-                  color: Color(0xFF7B6F72),
+                  color: Colors.black87,
                   height: 1.5,
                 ),
               ),
