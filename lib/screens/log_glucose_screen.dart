@@ -185,11 +185,23 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
         'createdAt': DateTime.now().toIso8601String(),
       };
 
-      // Save to Firestore
+      // Save glucose log data to Firestore
+      await _firestoreService.addDocument('glucose_logs', glucoseData);
+      print('Glucose log saved successfully');
+
+      // Update last operations in user document
       await FirebaseFirestore.instance
-          .collection('glucose_logs')
-          .doc(logId)
-          .set(glucoseData);
+          .collection('users')
+          .doc(currentUser.uid)
+          .set({
+        'lastOperations': {
+          'glucose': {
+            'value': glucoseValue,
+            'timestamp': timestamp.toIso8601String(),
+          }
+        }
+      }, SetOptions(merge: true)); // Use merge: true to avoid overwriting other fields
+      print('User last operations updated successfully');
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Glucose log saved successfully')),

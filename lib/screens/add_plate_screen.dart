@@ -29,10 +29,33 @@ class _AddPlateScreenState extends State<AddPlateScreen> {
         0, (sum, ingredient) => sum + (ingredient['totalCarbs'] ?? 0));
   }
 
+  @override
+  void initState() {
+    super.initState();
+    // Optionally fix existing meals when screen loads
+    _fixExistingMealsIfNeeded();
+  }
+
+  // Fix existing meals in the database
+  Future<void> _fixExistingMealsIfNeeded() async {
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId != null) {
+        final fixedCount = await _firestoreService.fixExistingMeals(userId);
+        if (fixedCount > 0) {
+          print('Fixed $fixedCount meals with incorrect carb calculations');
+        }
+      }
+    } catch (e) {
+      print('Error fixing existing meals: $e');
+    }
+  }
+
   void _searchIngredient(String query) async {
     if (query.isEmpty) {
       setState(() {
         _searchResults = [];
+        _errorMessage = ''; // Clear error message when input is empty
       });
       return;
     }
@@ -81,6 +104,7 @@ class _AddPlateScreenState extends State<AddPlateScreen> {
 
       _ingredientcontroler.clear();
       _searchResults = [];
+      _errorMessage = ''; // Clear error message when ingredient is selected
       _quantity = 100; // Reset quantity
     });
 
@@ -129,7 +153,7 @@ class _AddPlateScreenState extends State<AddPlateScreen> {
         throw Exception('User not logged in');
       }
 
-      // Add userId to meal data
+      // Prepare ingredients data with correct structure
       List<Map<String, dynamic>> ingredientsData = _ingredients
           .map((ingredient) => {
                 'name': ingredient['name'],
@@ -139,7 +163,7 @@ class _AddPlateScreenState extends State<AddPlateScreen> {
               })
           .toList();
 
-      // Save to Firestore with user association
+      // Save to Firestore with corrected total carbs calculation
       await _firestoreService.addMeal(
           mealId, plateName, ingredientsData, userId);
 
@@ -273,6 +297,8 @@ class _AddPlateScreenState extends State<AddPlateScreen> {
                               } else if (value.isEmpty) {
                                 setState(() {
                                   _searchResults = [];
+                                  _errorMessage =
+                                      ''; // Clear error message when input is empty
                                 });
                               }
                             },
