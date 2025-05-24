@@ -444,35 +444,7 @@ class _ActivityScreenState extends State<ActivityScreen>
               child: SafeArea(
                 child: Column(
                   children: [
-                    // App Bar
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      color: Colors.white,
-                      child: Row(
-                        children: [
-                          const Text(
-                            'Activity',
-                            style: TextStyle(
-                              fontFamily: 'SfProDisplay',
-                              color: Color(0xFF4A7BF7),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 22,
-                            ),
-                          ),
-                          const Spacer(),
-                          if (_isLoading)
-                            const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Color(0xFF4A7BF7),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
+                    
 
                     // Main Content
                     Expanded(

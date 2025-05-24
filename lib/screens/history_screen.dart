@@ -438,6 +438,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        backgroundColor: Colors.white,
         title: const Text(
           "History",
           style: TextStyle(
@@ -447,7 +448,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
             fontFamily: 'SfProDisplay',
           ),
         ),
-        backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
           IconButton(
@@ -652,10 +652,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
                 // Month selector
                 SizedBox(
-                  height: 60,
-                  child: Row(
-                    children: [
-                      Expanded(
+                    height: 60,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween, // espace entre titre et icône
+                      children: [
+                        const Padding(
+                          padding:EdgeInsets.only(left: 26.0),
+                          child: Text(
+                            'Injection History',
+                            style: TextStyle(
+                              fontFamily: 'SfProDisplay',
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF4A7BF7),
+                            ),
+                          ),
+                        ),
+                      /*Expanded(
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.symmetric(
@@ -698,7 +711,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             );
                           },
                         ),
-                      ),
+                      ),*/
                       Padding(
                         padding: const EdgeInsets.only(right: 16.0),
                         child: Container(
@@ -745,7 +758,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 10),
+                const SizedBox(height: 9),
 
                 if (selectedDate != null) ...[
                   Padding(
@@ -808,39 +821,42 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       final dateStr = days[dayIndex];
                       // Filter daily logs to include only injections
                       final dailyLogs = historyData[selectedMonth]![dateStr]!.where((item) => item['type'] == 'injection').toList();
- 
+
                       if (dailyLogs.isEmpty) {
                         return const SizedBox.shrink(); // Don't show date if no entries
                       }
 
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                        elevation: 2,
-                        color: const Color(0xFF4A7BF7),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                formatDate(dateStr),
-                                style: const TextStyle(
-                                  fontFamily: 'SfProDisplay',
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                      return Padding(
+                        padding: const EdgeInsets.all(15.0),
+                        child: Card(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                          elevation: 2,
+                          color: const Color(0xFF4A7BF7),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  formatDate(dateStr),
+                                  style: const TextStyle(
+                                    fontFamily: 'SfProDisplay',
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 8),
-                              ...dailyLogs.map((log) => Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 4),
-                                    child: _buildHistoryItem(log),
-                                  )),
-                            ],
+                                const SizedBox(height: 8),
+                                ...dailyLogs.map((log) => Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 4),
+                                      child: _buildHistoryItem(log),
+                                    )),
+                              ],
+                            ),
                           ),
                         ),
                       );

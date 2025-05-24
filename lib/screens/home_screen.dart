@@ -285,7 +285,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               fontFamily: 'SfProDisplay',
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF4A7BF7)),
+                              color: Colors.black),
                         ),
                         const SizedBox(height: 4),
                         _isLoading
@@ -426,6 +426,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       CustomCard(
                         text: 'Calculate dose insulin',
+                        icon: Icons.medication_liquid,
                         onTap: () {
                           Navigator.push(
                             context,
@@ -437,6 +438,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       CustomCard(
                         text: 'Log glucose',
+                        icon: Icons.bloodtype,
                         onTap: () {
                           Navigator.push(
                             context,
@@ -447,6 +449,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       CustomCard(
                         text: 'Add meal',
+                        icon:Icons.restaurant_menu,
                         onTap: () {
                           Navigator.push(
                             context,
@@ -457,6 +460,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       CustomCard(
                         text: 'Add activity',
+                        icon:Icons.directions_run,
                         onTap: () {
                           Navigator.push(
                             context,

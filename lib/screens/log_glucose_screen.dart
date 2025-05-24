@@ -225,6 +225,7 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        backgroundColor: Colors.white,
         title: const Text(
           "Log Glucose",
           style: TextStyle(
@@ -234,8 +235,12 @@ class _LogGlucoseScreenState extends State<LogGlucoseScreen> {
             fontFamily: 'SfProDisplay',
           ),
         ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF4A7BF7)),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
       ),
       body: SafeArea(
         child: Padding(

@@ -149,15 +149,18 @@ class _LoginpageState extends State<Loginpage> {
                         ),
                       ),
                       Expanded(
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: Image.asset(
-                            'assets/images/loginpageimage.png',
-                            fit: BoxFit.contain,
-                            width: 180,
-                          ),
-                        ),
-                      ),
+  child: Align(
+    alignment: Alignment.centerRight,
+      child: SizedBox(
+        width: 180, // ou toute autre valeur plus grande
+        child: Image.asset(
+          'assets/images/loginpageimage.png',
+          fit: BoxFit.contain,
+        ),
+      ),
+    ),
+  ),
+
                     ],
                   ),
                 ),
@@ -187,7 +190,7 @@ class _LoginpageState extends State<Loginpage> {
                                 controller: emailController,
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
-                                    return 'please enter your email';
+                                    return 'Please enter your email';
                                   }
                                   return null;
                                 },
@@ -206,27 +209,25 @@ class _LoginpageState extends State<Loginpage> {
                                   });
                                 },
                                 decoration: InputDecoration(
-                                  label: const Text('email'),
+                                  labelText: 'Email',
                                   hintText: 'Enter your email',
                                   border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: const BorderSide(color: Color(0xFF4A7BF7)),
                                   ),
                                   enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                    borderSide: BorderSide(
-                                      color: emailBorderColor,
-                                      width: emailBorderWidth,
-                                    ),
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(color: Colors.grey.shade300),
                                   ),
                                   focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFF4A7BF7),
-                                      width: 2.0,
-                                    ),
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: const BorderSide(color: Color(0xFF4A7BF7), width: 2),
                                   ),
+                                  filled: true,
+                                  fillColor: Colors.grey.shade50,
                                 ),
                               ),
+
                               const SizedBox(height: 15),
 
                               // Password field
@@ -235,14 +236,13 @@ class _LoginpageState extends State<Loginpage> {
                                 obscureText: isObscure,
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
-                                    return 'please enter your password';
+                                    return 'Please enter your password';
                                   }
                                   return null;
                                 },
                                 onTap: () {
                                   setState(() {
-                                    passwordBorderColor =
-                                        const Color(0xFF4A7BF7);
+                                    passwordBorderColor = const Color(0xFF4A7BF7);
                                     passwordBorderWidth = 2.0;
                                     emailBorderColor = Colors.grey;
                                     emailBorderWidth = 1.0;
@@ -255,30 +255,25 @@ class _LoginpageState extends State<Loginpage> {
                                   });
                                 },
                                 decoration: InputDecoration(
-                                  label: const Text('password'),
+                                  labelText: 'Password',
                                   hintText: 'Enter your password',
                                   border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: const BorderSide(color: Color(0xFF4A7BF7)),
                                   ),
                                   enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                    borderSide: BorderSide(
-                                      color: passwordBorderColor,
-                                      width: passwordBorderWidth,
-                                    ),
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(color: Colors.grey.shade300),
                                   ),
                                   focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFF4A7BF7),
-                                      width: 2.0,
-                                    ),
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: const BorderSide(color: Color(0xFF4A7BF7), width: 2),
                                   ),
+                                  filled: true,
+                                  fillColor: Colors.grey.shade50,
                                   suffixIcon: IconButton(
                                     icon: Icon(
-                                      isObscure
-                                          ? Icons.visibility_off
-                                          : Icons.visibility,
+                                      isObscure ? Icons.visibility_off : Icons.visibility,
                                       color: Colors.grey,
                                     ),
                                     onPressed: () {
@@ -289,6 +284,7 @@ class _LoginpageState extends State<Loginpage> {
                                   ),
                                 ),
                               ),
+
                               const SizedBox(height: 8),
 
                               // Remember me and Forgot password
@@ -453,11 +449,11 @@ class _LoginpageState extends State<Loginpage> {
                                     () => _socialAuthService
                                         .signInWithFacebook(context),
                                   ),
-                                  const SizedBox(width: 10),
+                                  /*const SizedBox(width: 10),
                                   _buildSocialButton(
                                     'assets/images/appleicon.png',
                                     () {/* Apple sign in */},
-                                  ),
+                                  ),*/
                                 ],
                               ),
                               const SizedBox(height: 15),

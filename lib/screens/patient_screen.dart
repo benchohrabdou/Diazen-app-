@@ -185,7 +185,12 @@ class _PatientScreenState extends State<PatientScreen> {
           ),
         ),
         backgroundColor: Colors.white, 
-        iconTheme: const IconThemeData(color: Colors.black), ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF4A7BF7)),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ), ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _patientData == null || _patientData!.isEmpty
@@ -362,11 +367,11 @@ class _PatientScreenState extends State<PatientScreen> {
         child: ElevatedButton(
           onPressed: () {
             Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => RapportScreen(patientId: widget.patientId),
-              ),
-            );
+  context,
+  MaterialPageRoute(
+    builder: (context) => RapportScreen(patientId: 'patientIdHere'),
+  ),
+);
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF4A7BF7),

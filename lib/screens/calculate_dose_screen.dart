@@ -1616,6 +1616,12 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
             fontSize: 24,
           ),
         ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF4A7BF7)),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
       ),
       body: SafeArea(
         child: Column(

@@ -30,6 +30,15 @@ class _SignuppageState extends State<Signuppage> {
   TextEditingController lastNameController = TextEditingController();
   bool agreePersonalData = true;
   bool isObscure = true;
+   // Ajoutez ces variables pour gérer les bordures
+  Color passwordBorderColor = Colors.grey;
+  double passwordBorderWidth = 1.0;
+  Color emailBorderColor = Colors.grey;
+  double emailBorderWidth = 1.0;
+  Color firstNameBorderColor = Colors.grey;
+  double firstNameBorderWidth = 1.0;
+  Color lastNameBorderColor = Colors.grey;
+  double lastNameBorderWidth = 1.0;
 
   @override
   void dispose() {
@@ -49,14 +58,12 @@ class _SignuppageState extends State<Signuppage> {
       });
 
       try {
-        // Create user with email and password
         UserCredential userCredential =
             await _auth.createUserWithEmailAndPassword(
           email: emailController.text,
           password: passwordController.text,
         );
 
-        // Send email verification
         await userCredential.user!.sendEmailVerification();
 
         setState(() {
@@ -66,7 +73,6 @@ class _SignuppageState extends State<Signuppage> {
           _userEmail = userCredential.user!.email;
         });
 
-        // Show verification email sent message
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -117,7 +123,6 @@ class _SignuppageState extends State<Signuppage> {
     });
 
     try {
-      // Sign in again to refresh the user
       await _auth.signInWithEmailAndPassword(
         email: emailController.text,
         password: passwordController.text,
@@ -127,10 +132,8 @@ class _SignuppageState extends State<Signuppage> {
       await user?.reload();
 
       if (user != null && user.emailVerified) {
-        // Email is verified, proceed to medical info form
         if (!mounted) return;
 
-        // Mark user as logged in
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('isLoggedIn', true);
 
@@ -152,7 +155,6 @@ class _SignuppageState extends State<Signuppage> {
           ),
         );
       } else {
-        // Email is not verified
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Please verify your email before proceeding.'),
@@ -191,7 +193,6 @@ class _SignuppageState extends State<Signuppage> {
           ),
         );
       } else {
-        // Try to sign in again
         await _auth.signInWithEmailAndPassword(
           email: emailController.text,
           password: passwordController.text,
@@ -232,51 +233,57 @@ class _SignuppageState extends State<Signuppage> {
       ),
       backgroundColor: const Color(0xFF4A7BF7),
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            // Top section - reduced height
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 5),
+            // White container with form
+            Positioned.fill(
+              top: 120, // Adjust this value to control overlap
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(40),
+                    topRight: Radius.circular(40),
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
+                  child: _emailSent
+                      ? _buildVerificationUI()
+                      : _buildSignUpForm(),
+                ),
+              ),
+            ),
+            
+            // Title and image section
+            Positioned(
+              top: 10,
+              left: 0,
+              right: 0,
               child: Column(
                 children: [
                   const Text(
                     "Get started",
                     style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontFamily: 'SfProDisplay',
-                        fontWeight: FontWeight.bold),
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontFamily: 'SfProDisplay',
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  //image
-                  SizedBox(
-  height: 80,
-  width: 80,
-  child: Image.asset(
-    'assets/images/signupimge2.png', // 🔁 remplace ce chemin
-    fit: BoxFit.contain,
-  ),
-),
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      margin: const EdgeInsets.only(left: 0),
+                      height: 100, // Image height
+                      child: Image.asset(
+                        'assets/images/signupimge2.png',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
                 ],
-              ),
-            ),
-            // Form section
-            Expanded(
-              child: Container(
-                decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(40),
-                      topRight: Radius.circular(40),
-                    )),
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 20),
-                    child: _emailSent
-                        ? _buildVerificationUI()
-                        : _buildSignUpForm(),
-                  ),
-                ),
               ),
             ),
           ],
@@ -299,18 +306,64 @@ class _SignuppageState extends State<Signuppage> {
               }
               return null;
             },
+            onTap: () {
+              setState(() {
+                firstNameBorderColor = const Color(0xFF4A7BF7);
+                firstNameBorderWidth = 2.0;
+
+                // Réinitialiser les autres bordures
+                emailBorderColor = Colors.grey;
+                emailBorderWidth = 1.0;
+                passwordBorderColor = Colors.grey;
+                passwordBorderWidth = 1.0;
+                lastNameBorderColor = Colors.grey;
+                lastNameBorderWidth = 1.0;
+              });
+            },
+            onFieldSubmitted: (_) {
+              setState(() {
+                firstNameBorderColor = Colors.grey;
+                firstNameBorderWidth = 1.0;
+              });
+            },
             decoration: InputDecoration(
-                label: const Text('First Name'),
-                hintText: 'Enter your first name',
-                hintStyle: const TextStyle(
-                  color: Colors.black54,
+              labelText: 'First Name',
+              hintText: 'Enter your first name',
+              hintStyle: const TextStyle(
+                color: Color(0xFF6C6C6C),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: firstNameBorderColor,
+                  width: firstNameBorderWidth,
                 ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                )),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: Colors.grey.shade300,
+                  width: 1.0,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(
+                  color: Color(0xFF4A7BF7),
+                  width: 2.0,
+                ),
+              ),
+              filled: true,
+              fillColor: Colors.grey.shade50,
+            ),
           ),
-          const SizedBox(height: 20),
-          TextFormField(
+
+                    const SizedBox(height: 20),
+                    TextFormField(
             controller: lastNameController,
             validator: (value) {
               if (value == null || value.isEmpty) {
@@ -318,17 +371,62 @@ class _SignuppageState extends State<Signuppage> {
               }
               return null;
             },
+            onTap: () {
+              setState(() {
+                lastNameBorderColor = const Color(0xFF4A7BF7);
+                lastNameBorderWidth = 2.0;
+                // Réinitialiser les autres bordures
+                emailBorderColor = Colors.grey;
+                emailBorderWidth = 1.0;
+                passwordBorderColor = Colors.grey;
+                passwordBorderWidth = 1.0;
+                firstNameBorderColor = Colors.grey;
+                firstNameBorderWidth = 1.0;
+              });
+            },
+            onFieldSubmitted: (_) {
+              setState(() {
+                lastNameBorderColor = Colors.grey;
+                lastNameBorderWidth = 1.0;
+              });
+            },
             decoration: InputDecoration(
-                label: const Text('Family Name'),
-                hintText: 'Enter your family name',
-                hintStyle:
-                    const TextStyle(color: Color.fromARGB(255, 108, 108, 108)),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                )),
+              labelText: 'Family Name',
+              hintText: 'Enter your family name',
+              hintStyle: const TextStyle(
+                color: Color.fromARGB(255, 108, 108, 108),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: lastNameBorderColor,
+                  width: lastNameBorderWidth,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: Colors.grey.shade300,
+                  width: 1.0,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(
+                  color: Color(0xFF4A7BF7),
+                  width: 2.0,
+                ),
+              ),
+              filled: true,
+              fillColor: Colors.grey.shade50,
+            ),
           ),
-          const SizedBox(height: 20),
-          TextFormField(
+                    const SizedBox(height: 20),
+                    TextFormField(
             controller: emailController,
             validator: (value) {
               if (value == null || value.isEmpty) {
@@ -339,19 +437,64 @@ class _SignuppageState extends State<Signuppage> {
               }
               return null;
             },
+            onTap: () {
+              setState(() {
+                emailBorderColor = const Color(0xFF4A7BF7);
+                emailBorderWidth = 2.0;
+                // Réinitialiser les autres bordures
+                passwordBorderColor = Colors.grey;
+                passwordBorderWidth = 1.0;
+                firstNameBorderColor = Colors.grey;
+                firstNameBorderWidth = 1.0;
+                lastNameBorderColor = Colors.grey;
+                lastNameBorderWidth = 1.0;
+              });
+            },
+            onFieldSubmitted: (_) {
+              setState(() {
+                emailBorderColor = Colors.grey;
+                emailBorderWidth = 1.0;
+              });
+            },
             decoration: InputDecoration(
-                label: const Text('Email'),
-                hintText: 'Enter your email',
-                hintStyle:
-                    const TextStyle(color: Color.fromARGB(255, 108, 108, 108)),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                )),
+              labelText: 'Email',
+              hintText: 'Enter your email',
+              hintStyle: const TextStyle(
+                color: Color.fromARGB(255, 108, 108, 108),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: emailBorderColor,
+                  width: emailBorderWidth,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: Colors.grey.shade300,
+                  width: 1.0,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(
+                  color: Color(0xFF4A7BF7),
+                  width: 2.0,
+                ),
+              ),
+              filled: true,
+              fillColor: Colors.grey.shade50,
+            ),
           ),
-          const SizedBox(height: 20),
-          TextFormField(
+                    const SizedBox(height: 20),
+                    TextFormField(
             controller: passwordController,
-            obscureText: true,
+            obscureText: isObscure,
             validator: (value) {
               if (value == null || value.isEmpty) {
                 return 'Please enter password';
@@ -361,18 +504,62 @@ class _SignuppageState extends State<Signuppage> {
               }
               return null;
             },
+            onTap: () {
+              setState(() {
+                passwordBorderColor = const Color(0xFF4A7BF7);
+                passwordBorderWidth = 2.0;
+                // Réinitialiser les autres bordures si nécessaire
+                emailBorderColor = Colors.grey;
+                emailBorderWidth = 1.0;
+                firstNameBorderColor = Colors.grey;
+                firstNameBorderWidth = 1.0;
+                lastNameBorderColor = Colors.grey;
+                lastNameBorderWidth = 1.0;
+              });
+            },
+            onFieldSubmitted: (_) {
+              setState(() {
+                passwordBorderColor = Colors.grey;
+                passwordBorderWidth = 1.0;
+              });
+            },
             decoration: InputDecoration(
-              label: const Text('Password'),
+              labelText: 'Password',
               hintText: 'Enter password',
-              hintStyle:
-                  const TextStyle(color: Color.fromARGB(255, 108, 108, 108)),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(20),
+              hintStyle: const TextStyle(
+                color: Color.fromARGB(255, 108, 108, 108),
               ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: passwordBorderColor,
+                  width: passwordBorderWidth,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: Colors.grey.shade300,
+                  width: 1.0,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(
+                  color: Color(0xFF4A7BF7),
+                  width: 2.0,
+                ),
+              ),
+              filled: true,
+              fillColor: Colors.grey.shade50,
               suffixIcon: IconButton(
                 icon: Icon(
                   isObscure ? Icons.visibility_off : Icons.visibility,
-                  color: Colors.grey,
+                  color: Colors.grey.shade600,
                 ),
                 onPressed: () {
                   setState(() {
@@ -402,11 +589,14 @@ class _SignuppageState extends State<Signuppage> {
                       color: Colors.white,
                     ),
                   )
-                : const Text('Sign up',
+                : const Text(
+                    'Sign up',
                     style: TextStyle(
-                        color: Colors.white,
-                        fontFamily: 'SfProDisplay',
-                        fontWeight: FontWeight.bold)),
+                      color: Colors.white,
+                      fontFamily: 'SfProDisplay',
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
           ),
           const SizedBox(height: 20),
           Row(
@@ -463,9 +653,9 @@ class _SignuppageState extends State<Signuppage> {
                     Image.asset('assets/images/facebooklogo.png', height: 30),
               ),
               const SizedBox(width: 10),
-              ElevatedButton(
+              /*ElevatedButton(
                 onPressed: () {
-                  // Apple sign in - not implemented yet
+                  // Apple sign in
                 },
                 style: ElevatedButton.styleFrom(
                   shape: const CircleBorder(),
@@ -473,7 +663,7 @@ class _SignuppageState extends State<Signuppage> {
                   backgroundColor: Colors.white,
                 ),
                 child: Image.asset('assets/images/appleicon.png', height: 30),
-              ),
+              ),*/
             ],
           ),
           const SizedBox(height: 20),
