@@ -5,7 +5,9 @@ import 'package:diazen/screens/log_glucose_screen.dart';
 import 'package:diazen/screens/settings_screen.dart';
 import 'package:diazen/screens/custom_card.dart';
 import 'package:diazen/screens/add_plate_screen.dart';
+import 'package:diazen/screens/saved_meals_screen.dart';
 import 'package:diazen/screens/history_screen.dart';
+import 'package:diazen/screens/activity_screen.dart';
 import 'package:diazen/classes/firestore_ops.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -282,7 +284,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           style: TextStyle(
                               fontFamily: 'SfProDisplay',
                               fontSize: 20,
-                              fontWeight: FontWeight.bold),
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF4A7BF7)),
                         ),
                         const SizedBox(height: 4),
                         _isLoading
@@ -453,12 +456,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                       ),
                       CustomCard(
-                        text: 'Check history',
+                        text: 'Add activity',
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (context) => const HistoryScreen()),
+                                builder: (context) => const ActivityScreen()),
                           );
                         },
                       ),
@@ -515,7 +518,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               style: TextStyle(
                                 fontFamily: 'SfProDisplay',
                                 fontSize: 14,
-                                color: Colors.black54,
+                                color: Colors.black87,
                               ),
                             ),
                           ],

@@ -41,6 +41,9 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
   List<Map<String, dynamic>> _mealsList = [];
   Map<String, dynamic>? _selectedMeal;
 
+  // State variable for meal quantity
+  double _mealQuantity = 1.0; // Default quantity
+
   // Activity reduction factors
   double unplannedActivityReductionFactor = 0.0;
   double plannedActivityReductionFactor = 0.0;
@@ -54,6 +57,10 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
   double lastUnplannedReductionPercent = 0.0;
   double lastPlannedReductionUnits = 0.0;
   double lastPlannedReductionPercent = 0.0;
+
+  // Add variables to store calculated activity calories for display on result screen
+  double _calculatedUnplannedActivityCalories = 0.0;
+  double _calculatedPlannedActivityCalories = 0.0;
 
   @override
   void initState() {
@@ -73,6 +80,7 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
       _selectedMeal = null;
       glucoseController.clear();
       mealController.clear();
+      _mealQuantity = 1.0; // Reset meal quantity
       _isSaving = false;
       _isLoadingMeals = false;
       unplannedActivityReductionFactor = 0.0;
@@ -85,6 +93,8 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
       lastUnplannedReductionPercent = 0.0;
       lastPlannedReductionUnits = 0.0;
       lastPlannedReductionPercent = 0.0;
+      _calculatedUnplannedActivityCalories = 0.0;
+      _calculatedPlannedActivityCalories = 0.0;
     });
   }
 
@@ -257,7 +267,7 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
 
   // Calculate insulin dose using functional insulin therapy method
   double calculateDose(double glucose, double carbs) {
-    // 1. Calculate carbohydrate coverage (meal dose)
+    // Calculate meal dose using the provided carbohydrate amount (which is already adjusted by quantity)
     double mealDose = carbs / icr;
     print('Meal dose: $mealDose units (${carbs}g / $icr)');
 
@@ -1284,7 +1294,8 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
     // If we have a selected meal, use that directly
     double carbs = 0;
     if (_selectedMeal != null) {
-      carbs = _selectedMeal!['carbs'] as double;
+      carbs =
+          _selectedMeal!['carbs'] as double; // Base carbs from selected meal
     } else {
       // Otherwise check if the meal exists
       final exists = await checkIfMealExists(meal);
@@ -1379,11 +1390,18 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
       }
     }
 
+    // Calculate final carbs for the dose calculation and saving
+    double adjustedCarbs = carbs * _mealQuantity;
+    print(
+        'Final carbohydrates for calculation: $adjustedCarbs g (Base: $carbs g * Quantity: $_mealQuantity)'); // Debug print
+
     // Calculate insulin dose
-    final dose = calculateDose(glucose, carbs);
+    final dose = calculateDose(
+        glucose, adjustedCarbs); // Pass adjusted carbs to calculateDose
 
     // Calculate individual components for the breakdown
-    final mealDose = carbs / icr;
+    final mealDose =
+        adjustedCarbs / icr; // Use adjusted carbs for breakdown display
     final correctionDose = (glucose - targetGlucose) / isf;
 
     // Calculate total effective activity reduction
@@ -1403,7 +1421,7 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
     final injection = Injection(
       tempsInject: timeOfDay,
       glycemie: glucose.round(),
-      quantiteGlu: carbs,
+      quantiteGlu: adjustedCarbs, // Save the calculated adjusted carbs
       doseInsuline: dose,
       mealName: meal,
       userId: currentUser?.uid,
@@ -1419,19 +1437,23 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
         print('Insulin dose saved successfully');
 
         // Update last operations in user document
-        await _firestore.collection('users').doc(currentUser.uid).set({
-          'lastOperations': {
-            'injection': {
-              'value': dose.toDouble(),
-              'timestamp': now.toIso8601String(),
-              'glucoseValue': glucose,
+        await _firestore.collection('users').doc(currentUser.uid).set(
+            {
+              'lastOperations': {
+                'injection': {
+                  'value': dose.toDouble(),
+                  'timestamp': now.toIso8601String(),
+                  'glucoseValue': glucose,
+                },
+                'meal': {
+                  'value': meal,
+                  'timestamp': now.toIso8601String(),
+                }
+              }
             },
-            'meal': {
-              'value': meal,
-              'timestamp': now.toIso8601String(),
-            }
-          }
-        }, SetOptions(merge: true)); // Use merge: true to avoid overwriting other fields
+            SetOptions(
+                merge:
+                    true)); // Use merge: true to avoid overwriting other fields
         print('User last operations updated successfully');
       }
     } catch (e) {
@@ -1439,7 +1461,7 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
     }
 
     // Round to nearest whole number for display
-    final roundedDose = (dose + 0.5).floor(); // This will round properly
+    final roundedDose = dose.round(); // Round to the nearest whole number
 
     // Navigate to result screen with calculation details
     final result = await Navigator.push(
@@ -1458,6 +1480,10 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
           activityReductionPercent:
               lastUnplannedReductionPercent + lastPlannedReductionPercent,
           mealName: meal,
+          unplannedActivityCalories: _calculatedUnplannedActivityCalories,
+          plannedActivityCalories: _calculatedPlannedActivityCalories,
+          adjustedCarbAmount:
+              adjustedCarbs, // Pass the adjusted carbs to the result screen
         ),
       ),
     );
@@ -1707,8 +1733,104 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    _buildLabel(
-                        'Planned activity to do?', 'assets/images/plan.png'),
+                    // Meal Quantity Input with Step Buttons (Moved to correct position)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Quantity of meal',
+                            style: TextStyle(
+                              fontFamily: 'SfProDisplay',
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black,
+                            )),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                height: 50,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[300],
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.remove,
+                                          color: Color(0xFF4A7BF7)),
+                                      onPressed: () {
+                                        setState(() {
+                                          if (_mealQuantity > 0.0) {
+                                            _mealQuantity = (_mealQuantity -
+                                                    0.25)
+                                                .clamp(0.0, double.infinity);
+                                          } else {
+                                            _mealQuantity = 0.0;
+                                          }
+                                        });
+                                      },
+                                    ),
+                                    Text(
+                                      _mealQuantity.toStringAsFixed(
+                                          _mealQuantity == 0.0 ? 0 : 2),
+                                      style: const TextStyle(
+                                        fontFamily: 'SfProDisplay',
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.add,
+                                          color: Color(0xFF4A7BF7)),
+                                      onPressed: () {
+                                        setState(() {
+                                          _mealQuantity += 0.25;
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF4A7BF7),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: IconButton(
+                                icon: const Icon(Icons.info_outline,
+                                    color: Colors.white),
+                                onPressed: _showBolChinoisInfo,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Image.asset('assets/images/activity.png',
+                            height: 20, width: 20),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Planned activity to do?',
+                          style: TextStyle(
+                            fontFamily: 'SfProDisplay',
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                     Row(
                       children: [
                         Radio<bool>(
@@ -1761,6 +1883,7 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
                           ),
                         ),
                       ),
+                    const SizedBox(height: 24),
                   ],
                 ),
               ),
@@ -1801,6 +1924,85 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    glucoseController.dispose();
+    mealController.dispose();
+    super.dispose();
+  }
+
+  void _showBolChinoisInfo() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text(
+          'The Chinese Bowl Method',
+          style: TextStyle(
+            fontFamily: 'SfProDisplay',
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF4A7BF7),
+          ),
+        ),
+        content: const SingleChildScrollView(
+          child: ListBody(
+            children: <Widget>[
+              Text(
+                'The quantity of the meal helps estimate carbohydrate intake based on portion size. \n\n',
+                style: TextStyle(fontFamily: 'SfProDisplay'),
+              ),
+              Text(
+                '**The Chinese Bowl Method:**',
+                style: TextStyle(
+                    fontFamily: 'SfProDisplay', fontWeight: FontWeight.bold),
+              ),
+              Text(
+                'This method uses a standard bowl size as a reference for portion estimation, especially for meals like rice, pasta, or cereals.\n\n',
+                style: TextStyle(fontFamily: 'SfProDisplay'),
+              ),
+              Text(
+                '**Examples:**\n',
+                style: TextStyle(
+                    fontFamily: 'SfProDisplay', fontWeight: FontWeight.bold),
+              ),
+              Text(
+                '- For a standard slice of pizza, a quantity of 1 might be used.\n',
+                style: TextStyle(fontFamily: 'SfProDisplay'),
+              ),
+              Text(
+                '- For a large plate of pasta, a quantity of 1.5 or 2 might be used.\n',
+                style: TextStyle(fontFamily: 'SfProDisplay'),
+              ),
+              Text(
+                '- For a small side dish, a quantity of 0.5 might be appropriate.\n\n',
+                style: TextStyle(fontFamily: 'SfProDisplay'),
+              ),
+              Text(
+                'Adjust the quantity based on your usual portion sizes and how they compare to a standard serving.',
+                style: TextStyle(fontFamily: 'SfProDisplay'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              "OK",
+              style: TextStyle(
+                fontFamily: 'SfProDisplay',
+                color: Color(0xFF4A7BF7),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

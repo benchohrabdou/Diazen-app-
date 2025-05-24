@@ -4,6 +4,8 @@ import 'home_screen.dart';
 import 'add_plate_screen.dart';
 import 'activity_screen.dart';
 import 'history_screen.dart';
+import 'saved_meals_screen.dart';
+import 'activity_history_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -17,9 +19,9 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> _screens = [
     const HomeScreen(),
-    const AddPlateScreen(),
-    const ActivityScreen(),
-    HistoryScreen(),
+    const SavedMealsScreen(),
+    const ActivityHistoryScreen(),
+    const HistoryScreen(),
   ];
 
   @override

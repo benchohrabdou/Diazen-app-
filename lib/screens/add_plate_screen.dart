@@ -5,7 +5,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 
 class AddPlateScreen extends StatefulWidget {
-  const AddPlateScreen({super.key});
+  final bool editMode;
+  final String? mealId;
+  final String? initialName;
+  final List<Map<String, dynamic>>? initialIngredients;
+
+  const AddPlateScreen({
+    super.key,
+    this.editMode = false,
+    this.mealId,
+    this.initialName,
+    this.initialIngredients,
+  });
 
   @override
   State<AddPlateScreen> createState() => _AddPlateScreenState();
@@ -32,6 +43,10 @@ class _AddPlateScreenState extends State<AddPlateScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.editMode) {
+      _platenamecontroller.text = widget.initialName ?? '';
+      _ingredients = List<Map<String, dynamic>>.from(widget.initialIngredients ?? []);
+    }
     // Optionally fix existing meals when screen loads
     _fixExistingMealsIfNeeded();
   }
@@ -123,7 +138,7 @@ class _AddPlateScreenState extends State<AddPlateScreen> {
     });
   }
 
-  Future<void> _savePlate() async {
+  Future<void> _saveMeal() async {
     final plateName = _platenamecontroller.text.trim();
 
     if (plateName.isEmpty) {
@@ -146,7 +161,7 @@ class _AddPlateScreenState extends State<AddPlateScreen> {
 
     try {
       final uuid = Uuid();
-      final mealId = uuid.v4();
+      final mealId = widget.editMode ? widget.mealId! : uuid.v4();
       final userId = FirebaseAuth.instance.currentUser?.uid;
 
       if (userId == null) {
@@ -159,7 +174,7 @@ class _AddPlateScreenState extends State<AddPlateScreen> {
                 'name': ingredient['name'],
                 'glucidesPer100g': ingredient['carbs'],
                 'quantity': ingredient['quantity'],
-                'totalCarbs': ingredient['totalCarbs'],
+                'totalCarbs': (ingredient['totalCarbs'] ?? 0.0),
               })
           .toList();
 
@@ -170,16 +185,21 @@ class _AddPlateScreenState extends State<AddPlateScreen> {
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Meal "$plateName" saved successfully!'),
+          content: Text(widget.editMode ? 'Meal updated successfully!' : 'Meal saved successfully!'),
           backgroundColor: Colors.green,
         ),
       );
 
-      // Clear form
-      setState(() {
-        _platenamecontroller.clear();
-        _ingredients = [];
-      });
+      // Clear form if not in edit mode
+      if (!widget.editMode) {
+        setState(() {
+          _platenamecontroller.clear();
+          _ingredients = [];
+        });
+      } else {
+        // If in edit mode, go back
+        Navigator.pop(context);
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -194,22 +214,45 @@ class _AddPlateScreenState extends State<AddPlateScreen> {
     }
   }
 
+  void _showBolChinoisInfo() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Le Bol Chinois Method'),
+        content: const Text(
+          'The quantity of the meal is calculated based on the "Le Bol Chinois" method, which estimates portion sizes using a standard bowl. This helps in calculating carbohydrate intake more accurately for insulin dosage.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
-          "Create Your Plate",
-          style: TextStyle(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: Text(
+          widget.editMode ? 'Edit Meal' : 'Add New Meal',
+          style: const TextStyle(
             color: Color(0xFF4A7BF7),
-            fontWeight: FontWeight.bold,
-            fontSize: 24,
             fontFamily: 'SfProDisplay',
+            fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF4A7BF7)),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -584,7 +627,7 @@ class _AddPlateScreenState extends State<AddPlateScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isSaving ? null : _savePlate,
+                  onPressed: _isSaving ? null : _saveMeal,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4A7BF7),
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -619,4 +662,12 @@ class _AddPlateScreenState extends State<AddPlateScreen> {
       ),
     );
   }
+
+  @override
+  void dispose() {
+    _platenamecontroller.dispose();
+    _ingredientcontroler.dispose();
+    super.dispose();
+  }
 }
+

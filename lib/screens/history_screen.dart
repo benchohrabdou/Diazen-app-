@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:diazen/classes/glucose_log.dart';
-import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -24,6 +24,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   String? selectedMonth;
   List<String> allMonths = [];
+  DateTime? selectedDate;
+
+  List<FlSpot> _glucoseSpots = [];
+  double _minGlucose = 0;
+  double _maxGlucose = 200;
+  double _minTimestamp = 0;
+  double _maxTimestamp = 1;
 
   @override
   void initState() {
@@ -32,6 +39,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Future<void> _loadHistoryData() async {
+    print('HistoryScreen _loadHistoryData: Function entered.');
     setState(() {
       _isLoading = true;
       _errorMessage = '';
@@ -54,28 +62,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
       // Initialize data structure
       historyData = {};
 
-      // Load glucose logs
-      await _loadGlucoseLogs(currentUser.uid);
+      // Load all data in parallel
+      await Future.wait([
+        _loadGlucoseLogs(currentUser.uid),
+        _loadInsulinDoses(currentUser.uid),
+        _loadInjections(currentUser.uid),
+      ]);
 
-      // Load insulin doses
-      await _loadInsulinDoses(currentUser.uid);
-
-      // Load injections
-      await _loadInjections(currentUser.uid);
-
-      // Load activities
-      await _loadActivities(currentUser.uid);
+      // Prepare data for the glucose graph
+      _prepareGlucoseGraphData();
 
       // Extract all months from the data
       allMonths = historyData.keys.toList();
       allMonths.sort((a, b) {
-        // Sort in reverse chronological order
         final aDate = DateFormat('MMMM yyyy').parse(a);
         final bDate = DateFormat('MMMM yyyy').parse(b);
         return bDate.compareTo(aDate);
       });
 
-      // Always set selectedMonth to a safe value
+      // Set selected month
       if (allMonths.isEmpty) {
         allMonths = [currentMonth];
         selectedMonth = currentMonth;
@@ -85,7 +90,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         selectedMonth = currentMonth;
       }
 
-      setState(() {}); // Force UI update after loading data
+      setState(() {});
     } catch (e) {
       setState(() {
         _errorMessage = 'Error loading history: $e';
@@ -104,6 +109,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           .collection('glucose_logs')
           .where('userId', isEqualTo: userId)
           .orderBy('timestamp', descending: true)
+          .limit(100) // Limit to last 100 entries for better performance
           .get();
 
       for (var doc in glucoseSnapshot.docs) {
@@ -113,24 +119,35 @@ class _HistoryScreenState extends State<HistoryScreen> {
         final glucoseValue = data['glucoseValue'] ?? 0;
         final context = data['context'] as String? ?? '';
         final note = data['note'] as String? ?? '';
+        final dynamic timestampRaw = data['timestamp'];
 
-        if (dateStr.isNotEmpty) {
+        DateTime? timestamp;
+        if (timestampRaw is Timestamp) {
+          timestamp = timestampRaw.toDate();
+        } else if (timestampRaw is String) {
+          try {
+            timestamp = DateTime.parse(timestampRaw);
+          } catch (e) {
+            continue;
+          }
+        } else {
+          continue;
+        }
+
+        if (dateStr.isNotEmpty && timestamp != null) {
           final date = DateFormat('yyyy-MM-dd').parse(dateStr);
           final month = DateFormat('MMMM yyyy').format(date);
 
-          // Initialize month if not exists
-          historyData[month] ??= {};
+          historyData.putIfAbsent(month, () => {});
+          historyData[month]!.putIfAbsent(dateStr, () => []);
 
-          // Initialize date if not exists
-          historyData[month]![dateStr] ??= [];
-
-          // Add glucose log
           historyData[month]![dateStr]!.add({
             'type': 'glucose',
             'value': glucoseValue.toString(),
             'time': timeStr,
             'context': context,
             'note': note,
+            'timestamp': timestamp,
           });
         }
       }
@@ -182,29 +199,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Future<void> _loadInjections(String userId) async {
     try {
-      QuerySnapshot injectionSnapshot = await _firestore
+      final QuerySnapshot injectionSnapshot = await _firestore
           .collection('injections')
           .where('userId', isEqualTo: userId)
           .orderBy('timestamp', descending: true)
+          .limit(100) // Limit to last 100 entries for better performance
           .get();
-
-      print(
-          'Loaded ${injectionSnapshot.docs.length} injection docs for user $userId');
-
-      // Fallback: if no docs, try loading all injections
-      if (injectionSnapshot.docs.isEmpty) {
-        print(
-            'No injections found for user $userId. Loading all injections for debugging.');
-        injectionSnapshot = await _firestore
-            .collection('injections')
-            .orderBy('timestamp', descending: true)
-            .get();
-      }
 
       for (var doc in injectionSnapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
-        print('Injection doc: ' + data.toString());
-        // Robust field extraction with fallbacks
         dynamic timestampRaw = data['timestamp'];
         String? timeStr = data['tempsInject'] as String?;
         var units = data.containsKey('doseInsuline')
@@ -217,40 +220,31 @@ class _HistoryScreenState extends State<HistoryScreen> {
           try {
             timestamp = DateTime.parse(timestampRaw);
           } catch (e) {
-            print(
-                'Skipping injection doc due to invalid timestamp string: $timestampRaw');
             continue;
           }
         } else if (timestampRaw is Timestamp) {
           timestamp = timestampRaw.toDate();
         } else {
-          print(
-              'Skipping injection doc due to unknown timestamp type: $timestampRaw');
           continue;
         }
 
-        if (timestamp == null ||
-            timeStr == null ||
-            units == null ||
-            glycemie == null) {
-          print('Skipping injection doc due to missing fields: $data');
+        if (timestamp == null || timeStr == null || units == null || glycemie == null) {
           continue;
         }
+
         final dateStr = DateFormat('yyyy-MM-dd').format(timestamp);
         final date = DateFormat('yyyy-MM-dd').parse(dateStr);
         final month = DateFormat('MMMM yyyy').format(date);
 
-        // Initialize month if not exists
-        historyData[month] ??= {};
-        // Initialize date if not exists
-        historyData[month]![dateStr] ??= [];
+        historyData.putIfAbsent(month, () => {});
+        historyData[month]!.putIfAbsent(dateStr, () => []);
 
-        // Add injection
         historyData[month]![dateStr]!.add({
           'type': 'injection',
           'value': units.toString(),
           'glycemie': glycemie.toString(),
           'time': timeStr,
+          'timestamp': timestamp,
         });
       }
     } catch (e) {
@@ -258,42 +252,75 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
-  Future<void> _loadActivities(String userId) async {
-    try {
-      final QuerySnapshot activitySnapshot = await _firestore
-          .collection('activities')
-          .where('userId', isEqualTo: userId)
-          .orderBy('timestamp', descending: true)
-          .get();
+  void _prepareGlucoseGraphData() {
+    _glucoseSpots = [];
+    _minGlucose = 0;
+    _maxGlucose = 200;
 
-      for (var doc in activitySnapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        final dateStr = data['date'] as String? ?? '';
-        final timeStr = data['time'] as String? ?? '';
-        final activityName = data['nom'] as String? ?? '';
-        final duration = data['duration'] ?? 30;
+    if (historyData.isEmpty) {
+      _minTimestamp = 0;
+      _maxTimestamp = 1;
+      return;
+    }
 
-        if (dateStr.isNotEmpty) {
-          final date = DateFormat('yyyy-MM-dd').parse(dateStr);
-          final month = DateFormat('MMMM yyyy').format(date);
+    // Pre-allocate list with estimated size
+    List<Map<String, dynamic>> allGlucoseData = [];
+    
+    // Process data in batches
+    historyData.values.forEach((monthData) {
+      monthData.values.forEach((dayLogs) {
+        // Add glucose logs
+        allGlucoseData.addAll(dayLogs.where((log) => log['type'] == 'glucose'));
+        
+        // Add injection glucose values
+        dayLogs.where((log) => log['type'] == 'injection').forEach((injection) {
+          if (injection['glycemie'] != null) {
+            allGlucoseData.add({
+              'type': 'injection_glucose',
+              'value': injection['glycemie'],
+              'timestamp': injection['timestamp'],
+            });
+          }
+        });
+      });
+    });
 
-          // Initialize month if not exists
-          historyData[month] ??= {};
+    if (allGlucoseData.isEmpty) {
+      _minTimestamp = 0;
+      _maxTimestamp = 1;
+      return;
+    }
 
-          // Initialize date if not exists
-          historyData[month]![dateStr] ??= [];
+    // Sort data by timestamp
+    allGlucoseData.sort((a, b) => (a['timestamp'] as DateTime).compareTo(b['timestamp'] as DateTime));
 
-          // Add activity
-          historyData[month]![dateStr]!.add({
-            'type': 'activity',
-            'name': activityName,
-            'duration': duration.toString(),
-            'time': timeStr,
-          });
-        }
-      }
-    } catch (e) {
-      print('Error loading activities: $e');
+    // Process data in a single pass
+    _minTimestamp = (allGlucoseData.first['timestamp'] as DateTime).millisecondsSinceEpoch.toDouble();
+    _maxTimestamp = (allGlucoseData.last['timestamp'] as DateTime).millisecondsSinceEpoch.toDouble();
+    _minGlucose = double.infinity;
+    _maxGlucose = double.negativeInfinity;
+
+    for (var data in allGlucoseData) {
+      final double glucoseValue = double.tryParse(data['value'].toString()) ?? 0;
+      final double timestamp = (data['timestamp'] as DateTime).millisecondsSinceEpoch.toDouble();
+
+      _glucoseSpots.add(FlSpot(timestamp, glucoseValue));
+
+      if (glucoseValue < _minGlucose) _minGlucose = glucoseValue;
+      if (glucoseValue > _maxGlucose) _maxGlucose = glucoseValue;
+    }
+
+    // Add padding
+    _minGlucose = (_minGlucose - 20).clamp(0.0, double.infinity);
+    _maxGlucose = _maxGlucose + 20;
+
+    double timestampPadding = (_maxTimestamp - _minTimestamp) * 0.05;
+    _minTimestamp -= timestampPadding;
+    _maxTimestamp += timestampPadding;
+
+    if ((_maxTimestamp - _minTimestamp).abs() < 1e-9) {
+      _minTimestamp -= 86400000;
+      _maxTimestamp += 86400000;
     }
   }
 
@@ -309,19 +336,27 @@ class _HistoryScreenState extends State<HistoryScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text("🩸 Glucose: ${item['value']} mg/dL",
-                style:
-                    const TextStyle(fontSize: 16, fontFamily: 'SfProDisplay')),
+                style: const TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'SfProDisplay',
+                    color: Colors.white)),
             Text("🕓 Time: ${item['time']}",
-                style:
-                    const TextStyle(fontSize: 16, fontFamily: 'SfProDisplay')),
+                style: const TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'SfProDisplay',
+                    color: Colors.white)),
             Text("🍽️ Context: ${item['context']}",
-                style:
-                    const TextStyle(fontSize: 16, fontFamily: 'SfProDisplay')),
+                style: const TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'SfProDisplay',
+                    color: Colors.white)),
             if (item['note'] != null && item['note'].isNotEmpty)
               Text("📝 Note: ${item['note']}",
                   style: const TextStyle(
-                      fontSize: 16, fontFamily: 'SfProDisplay')),
-            const Divider(),
+                      fontSize: 16,
+                      fontFamily: 'SfProDisplay',
+                      color: Colors.white)),
+            const Divider(color: Colors.white30),
           ],
         );
 
@@ -333,23 +368,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 style: const TextStyle(
                     fontSize: 16,
                     fontFamily: 'SfProDisplay',
-                    color: Color(0xFF4A7BF7),
+                    color: Colors.white,
                     fontWeight: FontWeight.bold)),
             Text("🩸 Glucose: ${item['glucose']} mg/dL",
-                style:
-                    const TextStyle(fontSize: 16, fontFamily: 'SfProDisplay')),
+                style: const TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'SfProDisplay',
+                    color: Colors.white)),
             Text("🍽️ Meal: ${item['meal']}",
-                style:
-                    const TextStyle(fontSize: 16, fontFamily: 'SfProDisplay')),
+                style: const TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'SfProDisplay',
+                    color: Colors.white)),
             Text("🕓 Time: ${item['time']}",
-                style:
-                    const TextStyle(fontSize: 16, fontFamily: 'SfProDisplay')),
-            const Divider(),
+                style: const TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'SfProDisplay',
+                    color: Colors.white)),
+            const Divider(color: Colors.white30),
           ],
         );
 
       case 'injection':
-        // Convert the dose value to an integer for display
         final int doseInt =
             double.tryParse(item['value'] as String? ?? '0')?.round() ?? 0;
         return Column(
@@ -359,35 +399,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 style: const TextStyle(
                     fontSize: 16,
                     fontFamily: 'SfProDisplay',
-                    color: Colors.green,
+                    color: Colors.white,
                     fontWeight: FontWeight.bold)),
             Text("🩸 Pre-meal glucose: ${item['glycemie']} mg/dL",
-                style:
-                    const TextStyle(fontSize: 16, fontFamily: 'SfProDisplay')),
-            Text("🕓 Time: ${item['time']}",
-                style:
-                    const TextStyle(fontSize: 16, fontFamily: 'SfProDisplay')),
-            const Divider(),
-          ],
-        );
-
-      case 'activity':
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("🏃 Activity: ${item['name']}",
                 style: const TextStyle(
                     fontSize: 16,
                     fontFamily: 'SfProDisplay',
-                    color: Colors.orange,
-                    fontWeight: FontWeight.bold)),
-            Text("⏱️ Duration: ${item['duration']} minutes",
-                style:
-                    const TextStyle(fontSize: 16, fontFamily: 'SfProDisplay')),
+                    color: Colors.white)),
             Text("🕓 Time: ${item['time']}",
-                style:
-                    const TextStyle(fontSize: 16, fontFamily: 'SfProDisplay')),
-            const Divider(),
+                style: const TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'SfProDisplay',
+                    color: Colors.white)),
+            const Divider(color: Colors.white30),
           ],
         );
 
@@ -441,55 +465,180 @@ class _HistoryScreenState extends State<HistoryScreen> {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Month selector
-                SizedBox(
-                  height: 60,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
+                // Glucose Graph Section
+                if (_glucoseSpots.isNotEmpty && _minTimestamp < _maxTimestamp)
+                  Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
-                    itemCount: months.length,
-                    itemBuilder: (context, index) {
-                      final month = months[index];
-                      final isSelected = month == selectedMonth;
-
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            selectedMonth = month;
-                          });
-                        },
-                        child: Container(
-                          margin: const EdgeInsets.only(right: 12),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? const Color(0xFF4A7BF7)
-                                : const Color(0xFFE3ECFB),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Center(
+                        horizontal: 16.0, vertical: 10.0),
+                    child: AspectRatio(
+                      aspectRatio: 1.7,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 8.0, left: 8.0),
                             child: Text(
-                              month,
+                              'Glucose Levels Over Time',
                               style: TextStyle(
-                                fontSize: 16,
-                                fontFamily: 'SfProDisplay',
+                                fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color:
-                                    isSelected ? Colors.white : Colors.black87,
+                                fontFamily: 'SfProDisplay',
+                                color: Color(0xFF4A7BF7),
                               ),
                             ),
                           ),
-                        ),
-                      );
-                    },
+                          Expanded(
+                            child: LineChart(
+                              LineChartData(
+                                gridData: FlGridData(
+                                  show: true,
+                                  drawVerticalLine: true,
+                                  horizontalInterval:
+                                      (_maxGlucose - _minGlucose) / 5,
+                                  verticalInterval:
+                                      (_maxTimestamp - _minTimestamp) / 5,
+                                  getDrawingHorizontalLine: (value) {
+                                    return const FlLine(
+                                      color: Colors.grey,
+                                      strokeWidth: 0.5,
+                                    );
+                                  },
+                                  getDrawingVerticalLine: (value) {
+                                    return const FlLine(
+                                      color: Colors.grey,
+                                      strokeWidth: 0.5,
+                                    );
+                                  },
+                                ),
+                                titlesData: FlTitlesData(
+                                  show: true,
+                                  bottomTitles: AxisTitles(
+                                    sideTitles: SideTitles(
+                                      showTitles: false,
+                                      reservedSize: 30,
+                                      interval:
+                                          (_maxTimestamp - _minTimestamp) / 5,
+                                      getTitlesWidget: (value, meta) {
+                                        final dateTime =
+                                            DateTime.fromMillisecondsSinceEpoch(
+                                                value.toInt());
+                                        String text;
+                                        if ((_maxTimestamp - _minTimestamp) <=
+                                            86400000 * 2.5) {
+                                          text =
+                                              DateFormat('jm').format(dateTime);
+                                        } else if ((_maxTimestamp -
+                                                _minTimestamp) <=
+                                            86400000 * 35) {
+                                          text = DateFormat('MMM dd')
+                                              .format(dateTime);
+                                        } else {
+                                          text = DateFormat('MMM yyyy')
+                                              .format(dateTime);
+                                        }
+                                        return SideTitleWidget(
+                                          axisSide: meta.axisSide,
+                                          space: 8.0,
+                                          child: Text(text,
+                                              style: const TextStyle(
+                                                  fontSize: 10)),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  leftTitles: AxisTitles(
+                                    sideTitles: SideTitles(
+                                      showTitles: false,
+                                    ),
+                                  ),
+                                  topTitles: const AxisTitles(
+                                      sideTitles:
+                                          SideTitles(showTitles: false)),
+                                  rightTitles: const AxisTitles(
+                                      sideTitles:
+                                          SideTitles(showTitles: false)),
+                                ),
+                                borderData: FlBorderData(
+                                  show: true,
+                                  border: Border.all(
+                                      color: const Color(0xff37434d), width: 1),
+                                ),
+                                minX: _minTimestamp,
+                                maxX: _maxTimestamp,
+                                minY: _minGlucose,
+                                maxY: _maxGlucose,
+                                lineBarsData: [
+                                  LineChartBarData(
+                                    spots: _glucoseSpots,
+                                    isCurved: true,
+                                    color: const Color(0xFF4A7BF7),
+                                    dotData: const FlDotData(show: true),
+                                    belowBarData: BarAreaData(
+                                      show: true,
+                                      color: const Color(0xFF4A7BF7)
+                                          .withOpacity(0.3),
+                                    ),
+                                  ),
+                                ],
+                                lineTouchData: LineTouchData(
+                                  touchTooltipData: LineTouchTooltipData(
+                                    tooltipBgColor: Colors.blueGrey.withOpacity(0.8),
+                                    getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+                                      return touchedBarSpots.map((barSpot) {
+                                        final date = DateTime.fromMillisecondsSinceEpoch(barSpot.x.toInt());
+                                        return LineTooltipItem(
+                                          '${DateFormat('MMM dd, HH:mm').format(date)}\n${barSpot.y.toStringAsFixed(0)} mg/dL',
+                                          const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontFamily: 'SfProDisplay',
+                                          ),
+                                        );
+                                      }).toList();
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 10),
+                // Add informative text below the graph
+                if (_glucoseSpots.isNotEmpty && _minTimestamp < _maxTimestamp)
+                  const Padding(
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                    child: Text(
+                      'X-axis: Time, Y-axis: Glucose Level (mg/dL)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontFamily: 'SfProDisplay',
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
 
-                if (_errorMessage.isNotEmpty)
+                if (_glucoseSpots.isEmpty &&
+                    !_isLoading &&
+                    _errorMessage.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Center(
+                      child: Text(
+                        'No glucose data available to display graph.',
+                        style: TextStyle(
+                          fontFamily: 'SfProDisplay',
+                          fontSize: 16,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                if (_errorMessage.isNotEmpty && _glucoseSpots.isEmpty)
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Text(
@@ -501,59 +650,201 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ),
                   ),
 
-                // Daily logs
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: days.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'No data for this month',
-                              style: TextStyle(
-                                fontFamily: 'SfProDisplay',
-                                fontSize: 16,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          )
-                        : ListView.builder(
-                            itemCount: days.length,
-                            itemBuilder: (context, index) {
-                              final day = days[index];
-                              final logs = historyData[selectedMonth]![day]!;
+                // Month selector
+                SizedBox(
+                  height: 60,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
+                          itemCount: allMonths.length,
+                          itemBuilder: (context, index) {
+                            final month = allMonths[index];
+                            final isSelected = month == selectedMonth;
 
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 10),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10)),
-                                elevation: 2,
-                                color: const Color(0xFFEAF1FF),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        formatDate(day),
-                                        style: const TextStyle(
-                                          fontFamily: 'SfProDisplay',
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      ...logs.map((log) => Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                                vertical: 4),
-                                            child: _buildHistoryItem(log),
-                                          )),
-                                    ],
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  selectedMonth = month;
+                                  selectedDate = null; // Reset selected date when changing month
+                                });
+                              },
+                              child: Container(
+                                margin: const EdgeInsets.only(right: 12),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? const Color(0xFF4A7BF7)
+                                      : const Color(0xFFE3ECFB),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    month,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontFamily: 'SfProDisplay',
+                                      fontWeight: FontWeight.bold,
+                                      color:
+                                          isSelected ? Colors.white : Colors.black87,
+                                    ),
                                   ),
                                 ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(right: 16.0),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE3ECFB),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: IconButton(
+                            icon: const Icon(
+                              Icons.calendar_today,
+                              color: Color(0xFF4A7BF7),
+                            ),
+                            onPressed: () async {
+                              final DateTime? picked = await showDatePicker(
+                                context: context,
+                                initialDate: selectedDate ?? DateTime.now(),
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime.now(),
+                                builder: (context, child) {
+                                  return Theme(
+                                    data: Theme.of(context).copyWith(
+                                      colorScheme: const ColorScheme.light(
+                                        primary: Color(0xFF4A7BF7),
+                                        onPrimary: Colors.white,
+                                        surface: Colors.white,
+                                        onSurface: Colors.black,
+                                      ),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
                               );
+                              if (picked != null) {
+                                setState(() {
+                                  selectedDate = picked;
+                                  selectedMonth = DateFormat('MMMM yyyy').format(picked);
+                                });
+                              }
                             },
                           ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                if (selectedDate != null) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Showing data for: ${DateFormat('EEEE, MMMM d, yyyy').format(selectedDate!)}',
+                          style: const TextStyle(
+                            fontFamily: 'SfProDisplay',
+                            fontSize: 16,
+                            color: Color(0xFF4A7BF7),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              selectedDate = null;
+                            });
+                          },
+                          icon: const Icon(
+                            Icons.clear,
+                            color: Color(0xFF4A7BF7),
+                          ),
+                          label: const Text(
+                            'Clear',
+                            style: TextStyle(
+                              fontFamily: 'SfProDisplay',
+                              color: Color(0xFF4A7BF7),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+
+                if (_errorMessage.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      _errorMessage,
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontFamily: 'SfProDisplay',
+                      ),
+                    ),
+                  ),
+                ],
+
+                // Daily Logs Section
+                Expanded(
+                  child: ListView.builder(
+                    key: PageStorageKey(selectedMonth), // Preserve scroll position
+                    itemCount: days.length,
+                    itemBuilder: (context, dayIndex) {
+                      final dateStr = days[dayIndex];
+                      // Filter daily logs to include only injections
+                      final dailyLogs = historyData[selectedMonth]![dateStr]!.where((item) => item['type'] == 'injection').toList();
+ 
+                      if (dailyLogs.isEmpty) {
+                        return const SizedBox.shrink(); // Don't show date if no entries
+                      }
+
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        elevation: 2,
+                        color: const Color(0xFF4A7BF7),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                formatDate(dateStr),
+                                style: const TextStyle(
+                                  fontFamily: 'SfProDisplay',
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              ...dailyLogs.map((log) => Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 4),
+                                    child: _buildHistoryItem(log),
+                                  )),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
