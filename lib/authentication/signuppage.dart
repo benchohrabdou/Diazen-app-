@@ -29,6 +29,7 @@ class _SignuppageState extends State<Signuppage> {
   TextEditingController firstNameController = TextEditingController();
   TextEditingController lastNameController = TextEditingController();
   bool agreePersonalData = true;
+  bool isObscure = true;
 
   @override
   void dispose() {
@@ -246,14 +247,15 @@ class _SignuppageState extends State<Signuppage> {
                         fontFamily: 'SfProDisplay',
                         fontWeight: FontWeight.bold),
                   ),
+                  //image
                   SizedBox(
-                    height: 80,
-                    width: 80,
-                    child: Image.asset(
-                      'assets/images/signupimge2.png',
-                      fit: BoxFit.contain,
-                    ),
-                  ),
+  height: 80,
+  width: 80,
+  child: Image.asset(
+    'assets/images/signupimge2.png', // 🔁 remplace ce chemin
+    fit: BoxFit.contain,
+  ),
+),
                 ],
               ),
             ),
@@ -360,13 +362,25 @@ class _SignuppageState extends State<Signuppage> {
               return null;
             },
             decoration: InputDecoration(
-                label: const Text('Password'),
-                hintText: 'Enter password',
-                hintStyle:
-                    const TextStyle(color: Color.fromARGB(255, 108, 108, 108)),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                )),
+              label: const Text('Password'),
+              hintText: 'Enter password',
+              hintStyle:
+                  const TextStyle(color: Color.fromARGB(255, 108, 108, 108)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  isObscure ? Icons.visibility_off : Icons.visibility,
+                  color: Colors.grey,
+                ),
+                onPressed: () {
+                  setState(() {
+                    isObscure = !isObscure;
+                  });
+                },
+              ),
+            ),
           ),
           const SizedBox(height: 20),
           ElevatedButton(

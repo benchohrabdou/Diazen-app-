@@ -102,6 +102,7 @@ flutter:
     - assets/images/note.png
     - assets/images/activity.png
     - assets/images/plan.png
+    - assets/images/doctorsignin.png
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 
