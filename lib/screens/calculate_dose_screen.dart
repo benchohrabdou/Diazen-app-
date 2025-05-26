@@ -1333,9 +1333,7 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
                 }
               }
             },
-            SetOptions(
-                merge:
-                    true)); // Use merge: true to avoid overwriting other fields
+            SetOptions(merge: true));
         print('User last operations updated successfully');
       }
     } catch (e) {
