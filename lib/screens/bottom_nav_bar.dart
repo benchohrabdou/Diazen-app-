@@ -16,7 +16,7 @@ class BottomNavBar extends StatelessWidget {
     return Container(
       color: Colors.white,
       child: Padding(
-        padding: const EdgeInsets.all(19.0),
+        padding: const EdgeInsets.all(15.0),
         child: GNav(
           selectedIndex: selectedIndex,
           onTabChange: onTabChange,
