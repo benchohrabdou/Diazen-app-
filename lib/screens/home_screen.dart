@@ -1,4 +1,5 @@
 import 'package:diazen/authentication/loginpage.dart';
+import 'package:diazen/screens/edit_profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:diazen/screens/calculate_dose_screen.dart';
 import 'package:diazen/screens/log_glucose_screen.dart';
@@ -259,6 +260,76 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showMedicalDisclaimer() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded,
+                color: Colors.orange[700]), // Warning icon
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Important Medical Information',
+                style: TextStyle(
+                  color: Colors.orange[700], // Warning color
+                  fontFamily: 'SfProDisplay',
+                  fontWeight: FontWeight.bold,
+                  overflow: TextOverflow
+                      .ellipsis, // Prevent overflow with ellipsis if needed
+                ),
+                maxLines: 2, // Allow title to wrap if necessary
+              ),
+            ),
+          ],
+        ),
+        content: const SingleChildScrollView(
+          child: ListBody(
+            children: <Widget>[
+              Text(
+                'This application is a tool to help you manage your diabetes, but it is NOT a substitute for professional medical advice, diagnosis, or treatment.',
+                style: TextStyle(fontFamily: 'SfProDisplay', fontSize: 14),
+              ),
+              SizedBox(height: 10),
+              Text(
+                'Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition.',
+                style: TextStyle(fontFamily: 'SfProDisplay', fontSize: 14),
+              ),
+              SizedBox(height: 10),
+              Text(
+                'Never disregard professional medical advice or delay in seeking it because of something you have read or calculated using this app.',
+                style: TextStyle(fontFamily: 'SfProDisplay', fontSize: 14),
+              ),
+              SizedBox(height: 10),
+              Text(
+                'Information provided by this app is for informational purposes only and is not intended to replace consultation with a qualified healthcare professional.',
+                style: TextStyle(fontFamily: 'SfProDisplay', fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: const Text(
+              'OK',
+              style: TextStyle(
+                color: Color(0xFF4A7BF7),
+                fontFamily: 'SfProDisplay',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -309,37 +380,83 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                       ],
                     ),
-                    PopupMenuButton<String>(
-                      icon: const Icon(
-                        Icons.settings,
-                        color: Color(0xFF4A7BF7),
-                      ),
-                      color: Colors.white,
-                      offset: const Offset(0, 40),
-                      onSelected: (value) {
-                        if (value == 'logout') {
-                          _showLogoutDialog();
-                        } else if (value == 'settings') {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const SettingsScreen()),
-                          );
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem<String>(
-                          value: 'logout',
-                          child: Text(
-                            'Logout',
-                            style: TextStyle(
-                              fontFamily: 'SfProDisplay',
-                              color: Color(0xFF4A7BF7),
-                              fontWeight: FontWeight.bold,
-                            ),
+                    // Settings Button
+                    IconButton(
+                      icon:
+                          const Icon(Icons.settings, color: Color(0xFF4A7BF7)),
+                      onPressed: () {
+                        // Show a simple menu or directly the disclaimer for testing
+                        showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.white,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(
+                                top: Radius.circular(20.0)),
                           ),
-                        ),
-                      ],
+                          clipBehavior: Clip.antiAliasWithSaveLayer,
+                          builder: (BuildContext context) {
+                            return SafeArea(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  // Optional: Add a drag handle
+                                  Container(
+                                    height: 4,
+                                    width: 40,
+                                    margin: const EdgeInsets.only(
+                                        top: 10, bottom: 10),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[300],
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                  ListTile(
+                                    leading: Icon(Icons.warning_amber_rounded,
+                                        color: Colors.orange[700]),
+                                    title: const Text('Medical Disclaimer',
+                                        style: TextStyle(
+                                            fontFamily: 'SfProDisplay')),
+                                    onTap: () {
+                                      Navigator.pop(
+                                          context); // Close the bottom sheet
+                                      _showMedicalDisclaimer(); // Show the disclaimer dialog
+                                    },
+                                  ),
+                                  ListTile(
+                                    leading: const Icon(Icons.person,
+                                        color: Color(0xFF4A7BF7)),
+                                    title: const Text('Edit Personal Data',
+                                        style: TextStyle(
+                                            fontFamily: 'SfProDisplay')),
+                                    onTap: () {
+                                      Navigator.pop(context);
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (context) =>
+                                                const EditProfileScreen()),
+                                      );
+                                    },
+                                  ),
+                                  ListTile(
+                                    leading: const Icon(Icons.logout,
+                                        color: Colors.redAccent),
+                                    title: const Text('Logout',
+                                        style: TextStyle(
+                                            fontFamily: 'SfProDisplay')),
+                                    onTap: () {
+                                      Navigator.pop(
+                                          context); // Close the bottom sheet
+                                      _showLogoutDialog(); // Show the logout dialog
+                                    },
+                                  ),
+                                  // Add other settings options here later
+                                ],
+                              ),
+                            );
+                          },
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -449,7 +566,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       CustomCard(
                         text: 'Add meal',
-                        icon:Icons.restaurant_menu,
+                        icon: Icons.restaurant_menu,
                         onTap: () {
                           Navigator.push(
                             context,
@@ -460,7 +577,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       CustomCard(
                         text: 'Add activity',
-                        icon:Icons.directions_run,
+                        icon: Icons.directions_run,
                         onTap: () {
                           Navigator.push(
                             context,

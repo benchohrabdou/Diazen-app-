@@ -1,6 +1,8 @@
+import 'package:diazen/authentication/loginpage.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:diazen/screens/patient_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class DoctorHomeScreen extends StatefulWidget {
   const DoctorHomeScreen({super.key});
@@ -29,11 +31,15 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   Future<void> _loadDoctorName() async {
     setState(() => _isLoading = true);
     try {
-      final doc = await FirebaseFirestore.instance.collection('doctors').doc('doctor1').get();
+      final doc = await FirebaseFirestore.instance
+          .collection('doctors')
+          .doc('doctor1')
+          .get();
       if (doc.exists) {
         setState(() {
           _doctorName = doc['prenom'] ?? 'doctor';
-          _favoritePatientIds = List<String>.from(doc['favoritePatients'] ?? []);
+          _favoritePatientIds =
+              List<String>.from(doc['favoritePatients'] ?? []);
         });
       }
     } catch (e) {
@@ -46,8 +52,11 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   Future<void> _loadPatients() async {
     setState(() => _isPatientsLoading = true);
     try {
-      final querySnapshot = await FirebaseFirestore.instance.collection('users').get();
-      final patients = querySnapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
+      final querySnapshot =
+          await FirebaseFirestore.instance.collection('users').get();
+      final patients = querySnapshot.docs
+          .map((doc) => {'id': doc.id, ...doc.data()})
+          .toList();
       setState(() {
         _allPatients = patients;
         _filteredPatients = patients;
@@ -123,7 +132,15 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              // Ajouter ici la logique de logout
+              // Add logout logic here
+              FirebaseAuth.instance.signOut();
+              // Navigate back to the login screen
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                    builder: (context) =>
+                        Loginpage()), // Replace YourLoginScreen() with your actual Login Screen widget
+                (Route<dynamic> route) => false,
+              );
             },
             child: const Text(
               'Logout',
@@ -200,9 +217,14 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                       icon: const Icon(
                         Icons.settings,
                         color: Color(0xFF4A7BF7),
+                        size: 28,
                       ),
                       color: Colors.white,
                       offset: const Offset(0, 40),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 8,
                       onSelected: (value) {
                         if (value == 'logout') {
                           _showLogoutDialog();
@@ -211,13 +233,19 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                       itemBuilder: (context) => [
                         const PopupMenuItem<String>(
                           value: 'logout',
-                          child: Text(
-                            'Logout',
-                            style: TextStyle(
-                              fontFamily: 'SfProDisplay',
-                              color: Color(0xFF4A7BF7),
-                              fontWeight: FontWeight.bold,
-                            ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.logout, color: Color(0xFF4A7BF7)),
+                              SizedBox(width: 8),
+                              Text(
+                                'Logout',
+                                style: TextStyle(
+                                  fontFamily: 'SfProDisplay',
+                                  color: Color(0xFF4A7BF7),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -226,7 +254,8 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 25.0, vertical: 10),
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
@@ -237,7 +266,8 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                       borderRadius: BorderRadius.circular(16),
                       borderSide: BorderSide.none,
                     ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                    contentPadding:
+                        const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
                     suffixIcon: Padding(
                       padding: const EdgeInsets.only(right: 12.0),
                       child: Icon(Icons.search, color: Color(0xFF4A7BF7)),
@@ -288,62 +318,73 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                               ),
                             ),
                             SizedBox(
-  height: 150,
-  child: _favoritePatientIds.isEmpty
-      ? const Text(
-          'No favorite patients yet.',
-          style: TextStyle(
-            fontFamily: 'SfProDisplay',
-            color: Colors.white70,
-            fontSize: 16,
-          ),
-        )
-      : ListView.builder(
-          shrinkWrap: true,
-          itemCount: _favoritePatientIds.length,
-          itemBuilder: (context, index) {
-            final id = _favoritePatientIds[index];
-            final patient = _allPatients.firstWhere(
-              (p) => p['id'] == id,
-              orElse: () => <String, dynamic>{},
-            );
-            if (patient.isEmpty) return const SizedBox.shrink();
+                              height: 150,
+                              child: _favoritePatientIds.isEmpty
+                                  ? const Text(
+                                      'No favorite patients yet.',
+                                      style: TextStyle(
+                                        fontFamily: 'SfProDisplay',
+                                        color: Colors.white70,
+                                        fontSize: 16,
+                                      ),
+                                    )
+                                  : ListView.builder(
+                                      shrinkWrap: true,
+                                      itemCount: _favoritePatientIds.length,
+                                      itemBuilder: (context, index) {
+                                        final id = _favoritePatientIds[index];
+                                        final patient = _allPatients.firstWhere(
+                                          (p) => p['id'] == id,
+                                          orElse: () => <String, dynamic>{},
+                                        );
+                                        if (patient.isEmpty)
+                                          return const SizedBox.shrink();
 
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => PatientScreen(patientId: patient['id']),
-                          ),
-                        );
-                      },
-                      child: Text(
-                        '${patient['prenom'] ?? ''} ${patient['nom'] ?? ''}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontFamily: 'SfProDisplay',
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                  const Icon(Icons.star, color: Colors.yellow, size: 20),
-                ],
-              ),
-            );
-          },
-        ),
-),
-
+                                        return Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 4.0),
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Expanded(
+                                                child: GestureDetector(
+                                                  onTap: () {
+                                                    Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder: (context) =>
+                                                            PatientScreen(
+                                                                patientId:
+                                                                    patient[
+                                                                        'id']),
+                                                      ),
+                                                    );
+                                                  },
+                                                  child: Text(
+                                                    '${patient['prenom'] ?? ''} ${patient['nom'] ?? ''}',
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontFamily:
+                                                          'SfProDisplay',
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                    ),
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ),
+                                              const Icon(Icons.star,
+                                                  color: Colors.yellow,
+                                                  size: 20),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                            ),
                           ],
                         ),
                       ),
@@ -357,7 +398,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 25.0),
                   child: Container(
-                    height: 320,
+                    height: 300,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
@@ -373,31 +414,38 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                         ? const Center(
                             child: Text(
                               'No patients found.',
-                              style: TextStyle(fontFamily: 'SfProDisplay', color: Colors.black54),
+                              style: TextStyle(
+                                  fontFamily: 'SfProDisplay',
+                                  color: Colors.black54),
                             ),
                           )
                         : ListView.builder(
+                            shrinkWrap: true,
                             itemCount: _filteredPatients.length,
                             itemBuilder: (context, index) {
                               final patient = _filteredPatients[index];
                               return ListTile(
                                 title: Text(
                                   '${patient['prenom'] ?? ''} ${patient['nom'] ?? ''}',
-                                  style: const TextStyle(fontFamily: 'SfProDisplay'),
+                                  style: const TextStyle(
+                                      fontFamily: 'SfProDisplay'),
                                 ),
-                                //subtitle: Text(patient['email'] ?? ''),
                                 trailing: IconButton(
                                   icon: Icon(
-                                    _favoritePatientIds.contains(patient['id']) ? Icons.star : Icons.star_border,
+                                    _favoritePatientIds.contains(patient['id'])
+                                        ? Icons.star
+                                        : Icons.star_border,
                                     color: const Color(0xFF4A7BF7),
                                   ),
-                                  onPressed: () => _toggleFavorite(patient['id']),
+                                  onPressed: () =>
+                                      _toggleFavorite(patient['id']),
                                 ),
                                 onTap: () {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => PatientScreen(patientId: patient['id']),
+                                      builder: (context) => PatientScreen(
+                                          patientId: patient['id']),
                                     ),
                                   );
                                 },

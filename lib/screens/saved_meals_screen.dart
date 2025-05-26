@@ -170,6 +170,12 @@ class _SavedMealsScreenState extends State<SavedMealsScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Color(0xFF4A7BF7)),
+            onPressed: _loadMeals,
+          ),
+        ],
       ),
       body: Column(
         children: [

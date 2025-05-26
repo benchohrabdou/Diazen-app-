@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
+import 'package:hive/hive.dart';
 
 class CalculateDoseScreen extends StatefulWidget {
   const CalculateDoseScreen({super.key});
@@ -16,10 +17,17 @@ class CalculateDoseScreen extends StatefulWidget {
 }
 
 class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
+  static const double _defaultTargetGlucose = 100.0;
+  static const double _defaultISF = 50.0;
+  static const double _defaultICR = 10.0;
+  static const double _defaultMealQuantity = 1.0;
+  static const int _defaultActivityDuration = 30;
+
   final TextEditingController glucoseController = TextEditingController();
   final TextEditingController mealController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  late Box<Map<String, dynamic>> _mealsCache;
 
   bool unplannedActivity = false;
   bool plannedActivity = false;
@@ -27,50 +35,44 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
   bool _isLoadingMeals = false;
   bool _isLoadingActivity = false;
 
-  // Activity intensity selections
   String unplannedActivityIntensity = 'none';
   String plannedActivityIntensity = 'none';
 
-  // User parameters - in a real app, these would be fetched from user settings
-  final double targetGlucose = 100; // Target blood glucose level in mg/dL
-  final double isf =
-      50; // Insulin Sensitivity Factor: 1 unit lowers glucose by 50 mg/dL
-  final double icr = 10; // Insulin-to-Carb Ratio: 1 unit per 10g of carbs
+  final double targetGlucose = _defaultTargetGlucose;
+  final double isf = _defaultISF;
+  final double icr = _defaultICR;
 
-  // Meals list for dropdown
   List<Map<String, dynamic>> _mealsList = [];
   Map<String, dynamic>? _selectedMeal;
+  double _mealQuantity = _defaultMealQuantity;
 
-  // State variable for meal quantity
-  double _mealQuantity = 1.0; // Default quantity
-
-  // Activity reduction factors
   double unplannedActivityReductionFactor = 0.0;
   double plannedActivityReductionFactor = 0.0;
 
-  // Add variables to store selected activity calories and duration
   double selectedUnplannedActivityCalories = 0.0;
-  int selectedUnplannedActivityDuration = 30;
+  int selectedUnplannedActivityDuration = _defaultActivityDuration;
   double selectedPlannedActivityCalories = 0.0;
-  int selectedPlannedActivityDuration = 30;
+  int selectedPlannedActivityDuration = _defaultActivityDuration;
   double lastUnplannedReductionUnits = 0.0;
   double lastUnplannedReductionPercent = 0.0;
   double lastPlannedReductionUnits = 0.0;
   double lastPlannedReductionPercent = 0.0;
 
-  // Add variables to store calculated activity calories for display on result screen
   double _calculatedUnplannedActivityCalories = 0.0;
   double _calculatedPlannedActivityCalories = 0.0;
 
   @override
   void initState() {
     super.initState();
-    // Reset all values when screen initializes
+    _initializeCache();
     _resetScreen();
     _loadUserMeals();
   }
 
-  // Add this method to reset the screen state
+  Future<void> _initializeCache() async {
+    _mealsCache = await Hive.openBox<Map<String, dynamic>>('meals_cache');
+  }
+
   void _resetScreen() {
     setState(() {
       unplannedActivity = false;
@@ -80,15 +82,15 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
       _selectedMeal = null;
       glucoseController.clear();
       mealController.clear();
-      _mealQuantity = 1.0; // Reset meal quantity
+      _mealQuantity = _defaultMealQuantity;
       _isSaving = false;
       _isLoadingMeals = false;
       unplannedActivityReductionFactor = 0.0;
       plannedActivityReductionFactor = 0.0;
       selectedUnplannedActivityCalories = 0.0;
-      selectedUnplannedActivityDuration = 30;
+      selectedUnplannedActivityDuration = _defaultActivityDuration;
       selectedPlannedActivityCalories = 0.0;
-      selectedPlannedActivityDuration = 30;
+      selectedPlannedActivityDuration = _defaultActivityDuration;
       lastUnplannedReductionUnits = 0.0;
       lastUnplannedReductionPercent = 0.0;
       lastPlannedReductionUnits = 0.0;
@@ -98,157 +100,110 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
     });
   }
 
-  // Override didChangeDependencies to reset when screen becomes active
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Reset the screen every time it becomes active
     _resetScreen();
     _loadUserMeals();
   }
 
-  // Get activity reduction factor based on intensity
+  static const Map<String, double> _activityReductionFactors = {
+    'light': 0.10,
+    'moderate': 0.20,
+    'vigorous': 0.30,
+    'intense': 0.40,
+    'none': 0.0,
+  };
+
   double getActivityReductionFactor(String intensity) {
-    switch (intensity) {
-      case 'light':
-        return 0.10; // 10%
-      case 'moderate':
-        return 0.20; // 20%
-      case 'vigorous':
-        return 0.30; // 30%
-      case 'intense':
-        return 0.40; // 40%
-      default:
-        return 0.0; // No activity
-    }
+    return _activityReductionFactors[intensity] ?? 0.0;
   }
 
-  // Load user meals from Firestore
   Future<void> _loadUserMeals() async {
+    if (_isLoadingMeals) return;
+
     setState(() {
       _isLoadingMeals = true;
     });
 
     try {
       final User? currentUser = _auth.currentUser;
-      if (currentUser != null) {
-        // Query meals collection for this user
-        final QuerySnapshot mealsSnapshot =
-            await _firestore.collection('meals').get();
+      if (currentUser == null) return;
 
-        List<Map<String, dynamic>> meals = [];
+      final QuerySnapshot mealsSnapshot = await _firestore
+          .collection('meals')
+          .where('userId', isEqualTo: currentUser.uid)
+          .get();
 
-        for (var doc in mealsSnapshot.docs) {
-          final data = doc.data() as Map<String, dynamic>;
+      List<Map<String, dynamic>> meals = [];
 
-          // Check if this meal belongs to the current user
-          final String? userId = data['userId'] as String?;
-          if (userId != null && userId != currentUser.uid) {
-            continue; // Skip meals that belong to other users
-          }
+      for (var doc in mealsSnapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        String mealName = data['name'] as String? ?? 
+                         data['nomRepas'] as String? ?? '';
+        
+        if (mealName.isEmpty) continue;
 
-          // Get meal name
-          String mealName = '';
-          if (data.containsKey('name')) {
-            mealName = data['name'] as String;
-          } else if (data.containsKey('nomRepas')) {
-            mealName = data['nomRepas'] as String;
-          }
-
-          if (mealName.isEmpty) {
-            continue; // Skip meals without a name
-          }
-
-          // Calculate total carbs - PRIORITIZE totalCarbs over totalGlucides
-          double totalCarbs = 0;
-
-          // First try totalCarbs field
-          if (data.containsKey('totalCarbs')) {
-            totalCarbs = (data['totalCarbs'] is num)
-                ? (data['totalCarbs'] as num).toDouble()
-                : double.tryParse(data['totalCarbs'].toString()) ?? 0;
-          }
-          // If no totalCarbs, then try totalGlucides
-          else if (data.containsKey('totalGlucides')) {
-            totalCarbs = (data['totalGlucides'] is num)
-                ? (data['totalGlucides'] as num).toDouble()
-                : double.tryParse(data['totalGlucides'].toString()) ?? 0;
-          }
-
-          // If totalCarbs is still 0 or suspiciously low, calculate from glucidesPer100g and quantity
-          if (totalCarbs < 1 &&
-              data.containsKey('glucidesPer100g') &&
-              data.containsKey('quantity')) {
-            double glucidesPer100g = (data['glucidesPer100g'] is num)
-                ? (data['glucidesPer100g'] as num).toDouble()
-                : double.tryParse(data['glucidesPer100g'].toString()) ?? 0;
-
-            double quantity = (data['quantity'] is num)
-                ? (data['quantity'] as num).toDouble()
-                : double.tryParse(data['quantity'].toString()) ?? 0;
-
-            // Calculate total carbs based on glucidesPer100g and quantity
-            totalCarbs = (glucidesPer100g * quantity) / 100;
-            print(
-                'Calculated totalCarbs from glucidesPer100g: $totalCarbs (${glucidesPer100g}g per 100g × ${quantity}g ÷ 100)');
-          }
-
-          // If totalCarbs is still 0, check if totalGlucides and glucidesPer100g are the same
-          // This indicates a potential error where totalGlucides wasn't calculated correctly
-          if (totalCarbs < 1 &&
-              data.containsKey('totalGlucides') &&
-              data.containsKey('glucidesPer100g') &&
-              data['totalGlucides'] == data['glucidesPer100g']) {
-            // This is likely an error - recalculate using quantity
-            if (data.containsKey('quantity')) {
-              double glucidesPer100g = (data['glucidesPer100g'] is num)
-                  ? (data['glucidesPer100g'] as num).toDouble()
-                  : double.tryParse(data['glucidesPer100g'].toString()) ?? 0;
-
-              double quantity = (data['quantity'] is num)
-                  ? (data['quantity'] as num).toDouble()
-                  : double.tryParse(data['quantity'].toString()) ?? 0;
-
-              // Calculate total carbs based on glucidesPer100g and quantity
-              totalCarbs = (glucidesPer100g * quantity) / 100;
-              print(
-                  'Fixed incorrect totalGlucides: $totalCarbs (${glucidesPer100g}g per 100g × ${quantity}g ÷ 100)');
-            }
-          }
-
-          // If no total carbs found, try to calculate from ingredients
-          if (totalCarbs == 0 &&
-              data['ingredients'] != null &&
-              data['ingredients'] is List) {
-            for (var ingredient in data['ingredients']) {
-              if (ingredient is Map && ingredient.containsKey('totalCarbs')) {
-                totalCarbs += (ingredient['totalCarbs'] as num).toDouble();
-              }
-            }
-          }
-
-          meals.add({
-            'id': doc.id,
-            'name': mealName,
-            'carbs': totalCarbs,
-          });
-
-          print('Loaded meal: $mealName with ${totalCarbs}g carbs');
+        double totalCarbs = 0.0;
+        if (data.containsKey('totalCarbs')) {
+          totalCarbs = (data['totalCarbs'] is num)
+              ? (data['totalCarbs'] as num).toDouble()
+              : double.tryParse(data['totalCarbs'].toString()) ?? 0.0;
+        } else if (data.containsKey('totalGlucides')) {
+          totalCarbs = (data['totalGlucides'] is num)
+              ? (data['totalGlucides'] as num).toDouble()
+              : double.tryParse(data['totalGlucides'].toString()) ?? 0.0;
         }
 
-        setState(() {
-          _mealsList = meals;
-          _isLoadingMeals = false;
-        });
+        if (totalCarbs < 1) continue;
 
-        print('Loaded ${meals.length} meals');
+        meals.add({
+          'id': doc.id,
+          'name': mealName,
+          'carbs': totalCarbs,
+        });
       }
+
+      setState(() {
+        _mealsList = meals;
+        _isLoadingMeals = false;
+      });
     } catch (e) {
       print('Error loading meals: $e');
       setState(() {
         _isLoadingMeals = false;
       });
     }
+  }
+
+  double _calculateTotalCarbs(Map<String, dynamic> data) {
+    double totalCarbs = 0;
+
+    if (data.containsKey('totalCarbs')) {
+      totalCarbs = (data['totalCarbs'] is num)
+          ? (data['totalCarbs'] as num).toDouble()
+          : double.tryParse(data['totalCarbs'].toString()) ?? 0;
+    } else if (data.containsKey('totalGlucides')) {
+      totalCarbs = (data['totalGlucides'] is num)
+          ? (data['totalGlucides'] as num).toDouble()
+          : double.tryParse(data['totalGlucides'].toString()) ?? 0;
+    }
+
+    if (totalCarbs < 1 &&
+        data.containsKey('glucidesPer100g') &&
+        data.containsKey('quantity')) {
+      double glucidesPer100g = (data['glucidesPer100g'] is num)
+          ? (data['glucidesPer100g'] as num).toDouble()
+          : double.tryParse(data['glucidesPer100g'].toString()) ?? 0;
+
+      double quantity = (data['quantity'] is num)
+          ? (data['quantity'] as num).toDouble()
+          : double.tryParse(data['quantity'].toString()) ?? 0;
+
+      totalCarbs = (glucidesPer100g * quantity) / 100;
+    }
+
+    return totalCarbs;
   }
 
   // Helper to get reduction percent from calories
@@ -367,6 +322,7 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
         // First try to find by exact name
         QuerySnapshot mealSnapshot = await _firestore
             .collection('meals')
+            .where('userId', isEqualTo: currentUser.uid)
             .where('name', isEqualTo: mealName)
             .limit(1)
             .get();
@@ -375,6 +331,7 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
         if (mealSnapshot.docs.isEmpty) {
           mealSnapshot = await _firestore
               .collection('meals')
+              .where('userId', isEqualTo: currentUser.uid)
               .where('nomRepas', isEqualTo: mealName)
               .limit(1)
               .get();
@@ -391,7 +348,7 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
             foundMealName = data['nomRepas'] as String;
           }
 
-          // Calculate total carbs - PRIORITIZE totalCarbs over totalGlucides
+          // Calculate total carbs
           double totalCarbs = 0;
 
           // First try totalCarbs field
@@ -419,44 +376,7 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
                 ? (data['quantity'] as num).toDouble()
                 : double.tryParse(data['quantity'].toString()) ?? 0;
 
-            // Calculate total carbs based on glucidesPer100g and quantity
             totalCarbs = (glucidesPer100g * quantity) / 100;
-            print(
-                'Calculated totalCarbs from glucidesPer100g: $totalCarbs (${glucidesPer100g}g per 100g × ${quantity}g ÷ 100)');
-          }
-
-          // If totalCarbs is still 0, check if totalGlucides and glucidesPer100g are the same
-          // This indicates a potential error where totalGlucides wasn't calculated correctly
-          if (totalCarbs < 1 &&
-              data.containsKey('totalGlucides') &&
-              data.containsKey('glucidesPer100g') &&
-              data['totalGlucides'] == data['glucidesPer100g']) {
-            // This is likely an error - recalculate using quantity
-            if (data.containsKey('quantity')) {
-              double glucidesPer100g = (data['glucidesPer100g'] is num)
-                  ? (data['glucidesPer100g'] as num).toDouble()
-                  : double.tryParse(data['glucidesPer100g'].toString()) ?? 0;
-
-              double quantity = (data['quantity'] is num)
-                  ? (data['quantity'] as num).toDouble()
-                  : double.tryParse(data['quantity'].toString()) ?? 0;
-
-              // Calculate total carbs based on glucidesPer100g and quantity
-              totalCarbs = (glucidesPer100g * quantity) / 100;
-              print(
-                  'Fixed incorrect totalGlucides: $totalCarbs (${glucidesPer100g}g per 100g × ${quantity}g ÷ 100)');
-            }
-          }
-
-          // If no total carbs found, try to calculate from ingredients
-          if (totalCarbs == 0 &&
-              data['ingredients'] != null &&
-              data['ingredients'] is List) {
-            for (var ingredient in data['ingredients']) {
-              if (ingredient is Map && ingredient.containsKey('totalCarbs')) {
-                totalCarbs += (ingredient['totalCarbs'] as num).toDouble();
-              }
-            }
           }
 
           return {
@@ -811,6 +731,20 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
                       context,
                       MaterialPageRoute(builder: (_) => const ActivityScreen()),
                     ).then((_) {
+                      // After adding activity, reset activity selection and load recent list
+                      if (unplannedActivity) {
+                        setState(() {
+                          unplannedActivity = false;
+                          selectedUnplannedActivityCalories = 0.0;
+                          selectedUnplannedActivityDuration = _defaultActivityDuration;
+                        });
+                      } else if (plannedActivity) {
+                        setState(() {
+                          plannedActivity = false;
+                          selectedPlannedActivityCalories = 0.0;
+                          selectedPlannedActivityDuration = _defaultActivityDuration;
+                        });
+                      }
                       Navigator.pop(context); // Close dialog
                     });
                   },
@@ -844,100 +778,68 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
                 builder: (context, snapshot) {
                   // Debug prints
                   if (snapshot.hasError) {
-                    print('Activity query error: \\${snapshot.error}');
+                    print('Activity query error: \${snapshot.error}');
                   }
                   if (snapshot.hasData) {
                     print(
-                        'Activity query found \\${snapshot.data!.docs.length} docs');
+                        'Activity query found \${snapshot.data!.docs.length} docs');
                     for (var doc in snapshot.data!.docs) {
-                      print('Activity doc: \\${doc.data()}');
+                      print('Activity doc: \${doc.data()}');
                     }
                   }
                   // Fallback: if error or no data, try to show all activities
-                  if ((snapshot.hasError ||
-                      !snapshot.hasData ||
-                      snapshot.data!.docs.isEmpty)) {
-                    return FutureBuilder<QuerySnapshot>(
-                      future: _firestore.collection('activities').get(),
-                      builder: (context, fallbackSnapshot) {
-                        if (fallbackSnapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Center(
-                            child: CircularProgressIndicator(
-                              color: Color(0xFF4A7BF7),
-                            ),
-                          );
-                        }
-                        if (!fallbackSnapshot.hasData ||
-                            fallbackSnapshot.data!.docs.isEmpty) {
-                          return const Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: Text(
-                              "No recent activities found",
-                              style: TextStyle(
-                                fontFamily: 'SfProDisplay',
-                                color: Colors.grey,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          );
-                        }
-                        return ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: fallbackSnapshot.data!.docs.length,
-                          itemBuilder: (context, index) {
-                            final doc = fallbackSnapshot.data!.docs[index];
-                            final activity = doc.data() as Map<String, dynamic>;
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[100],
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: Colors.grey[300]!,
-                                  width: 1,
-                                ),
-                              ),
-                              child: ListTile(
-                                title: Text(
-                                  activity['nom'] ?? 'Unknown Activity',
-                                  style: const TextStyle(
-                                    fontFamily: 'SfProDisplay',
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  '${activity['cal30mn']?.toString() ?? '0'} calories/30min - ${activity['duration'] ?? 30} minutes',
-                                  style: const TextStyle(
-                                    fontFamily: 'SfProDisplay',
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                                trailing: const Icon(
-                                  Icons.arrow_forward_ios,
-                                  color: Color(0xFF4A7BF7),
-                                  size: 16,
-                                ),
-                                onTap: () {
-                                  Navigator.pop(context, {
-                                    ...activity,
-                                    'id': doc.id,
-                                  });
-                                },
-                              ),
-                            );
-                          },
-                        );
-                      },
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF4A7BF7),
+                      ),
                     );
                   }
-                  // Normal display
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text(
+                        "No recent activities found",
+                        style: TextStyle(
+                          fontFamily: 'SfProDisplay',
+                          color: Colors.grey,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    );
+                  }
+                  
                   return ListView.builder(
                     shrinkWrap: true,
                     itemCount: snapshot.data!.docs.length,
                     itemBuilder: (context, index) {
                       final doc = snapshot.data!.docs[index];
                       final activity = doc.data() as Map<String, dynamic>;
+                      
+                      // Safely extract and round calories
+                      double calories = 0.0;
+                      if (activity.containsKey('cal30mn')) {
+                        calories = (activity['cal30mn'] is num)
+                            ? (activity['cal30mn'] as num).toDouble()
+                            : double.tryParse(activity['cal30mn'].toString()) ?? 0.0;
+                      } else if (activity.containsKey('calories')) {
+                         calories = (activity['calories'] is num)
+                            ? (activity['calories'] as num).toDouble()
+                            : double.tryParse(activity['calories'].toString()) ?? 0.0;
+                      } else if (activity.containsKey('caloriesPer30Min')) {
+                          calories = (activity['caloriesPer30Min'] is num)
+                            ? (activity['caloriesPer30Min'] as num).toDouble()
+                            : double.tryParse(activity['caloriesPer30Min'].toString()) ?? 0.0;
+                      }
+                      
+                      // Safely extract duration
+                      int duration = 30;
+                      if (activity.containsKey('duration')) {
+                         duration = (activity['duration'] is num)
+                            ? (activity['duration'] as num).toInt()
+                            : int.tryParse(activity['duration'].toString()) ?? 30;
+                      }
+
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         decoration: BoxDecoration(
@@ -957,7 +859,7 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
                             ),
                           ),
                           subtitle: Text(
-                            '${activity['cal30mn']?.toString() ?? '0'} calories/30min - ${activity['duration'] ?? 30} minutes',
+                            '${calories.toStringAsFixed(1)} calories/${duration} minutes',
                             style: const TextStyle(
                               fontFamily: 'SfProDisplay',
                               color: Colors.grey,
@@ -1054,6 +956,20 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
                       context,
                       MaterialPageRoute(builder: (_) => const ActivityScreen()),
                     ).then((_) {
+                      // After adding activity, reset activity selection and load recent list
+                      if (unplannedActivity) {
+                        setState(() {
+                          unplannedActivity = false;
+                          selectedUnplannedActivityCalories = 0.0;
+                          selectedUnplannedActivityDuration = _defaultActivityDuration;
+                        });
+                      } else if (plannedActivity) {
+                        setState(() {
+                          plannedActivity = false;
+                          selectedPlannedActivityCalories = 0.0;
+                          selectedPlannedActivityDuration = _defaultActivityDuration;
+                        });
+                      }
                       Navigator.pop(context); // Close dialog
                     });
                   },
@@ -1087,100 +1003,68 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
                 builder: (context, snapshot) {
                   // Debug prints
                   if (snapshot.hasError) {
-                    print('Activity query error: \\${snapshot.error}');
+                    print('Activity query error: \${snapshot.error}');
                   }
                   if (snapshot.hasData) {
                     print(
-                        'Activity query found \\${snapshot.data!.docs.length} docs');
+                        'Activity query found \${snapshot.data!.docs.length} docs');
                     for (var doc in snapshot.data!.docs) {
-                      print('Activity doc: \\${doc.data()}');
+                      print('Activity doc: \${doc.data()}');
                     }
                   }
                   // Fallback: if error or no data, try to show all activities
-                  if ((snapshot.hasError ||
-                      !snapshot.hasData ||
-                      snapshot.data!.docs.isEmpty)) {
-                    return FutureBuilder<QuerySnapshot>(
-                      future: _firestore.collection('activities').get(),
-                      builder: (context, fallbackSnapshot) {
-                        if (fallbackSnapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Center(
-                            child: CircularProgressIndicator(
-                              color: Color(0xFF4A7BF7),
-                            ),
-                          );
-                        }
-                        if (!fallbackSnapshot.hasData ||
-                            fallbackSnapshot.data!.docs.isEmpty) {
-                          return const Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: Text(
-                              "No recent activities found",
-                              style: TextStyle(
-                                fontFamily: 'SfProDisplay',
-                                color: Colors.grey,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          );
-                        }
-                        return ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: fallbackSnapshot.data!.docs.length,
-                          itemBuilder: (context, index) {
-                            final doc = fallbackSnapshot.data!.docs[index];
-                            final activity = doc.data() as Map<String, dynamic>;
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[100],
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: Colors.grey[300]!,
-                                  width: 1,
-                                ),
-                              ),
-                              child: ListTile(
-                                title: Text(
-                                  activity['nom'] ?? 'Unknown Activity',
-                                  style: const TextStyle(
-                                    fontFamily: 'SfProDisplay',
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  '${activity['cal30mn']?.toString() ?? '0'} calories/30min - ${activity['duration'] ?? 30} minutes',
-                                  style: const TextStyle(
-                                    fontFamily: 'SfProDisplay',
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                                trailing: const Icon(
-                                  Icons.arrow_forward_ios,
-                                  color: Color(0xFF4A7BF7),
-                                  size: 16,
-                                ),
-                                onTap: () {
-                                  Navigator.pop(context, {
-                                    ...activity,
-                                    'id': doc.id,
-                                  });
-                                },
-                              ),
-                            );
-                          },
-                        );
-                      },
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF4A7BF7),
+                      ),
                     );
                   }
-                  // Normal display
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text(
+                        "No recent activities found",
+                        style: TextStyle(
+                          fontFamily: 'SfProDisplay',
+                          color: Colors.grey,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    );
+                  }
+                  
                   return ListView.builder(
                     shrinkWrap: true,
                     itemCount: snapshot.data!.docs.length,
                     itemBuilder: (context, index) {
                       final doc = snapshot.data!.docs[index];
                       final activity = doc.data() as Map<String, dynamic>;
+                      
+                      // Safely extract and round calories
+                      double calories = 0.0;
+                      if (activity.containsKey('cal30mn')) {
+                        calories = (activity['cal30mn'] is num)
+                            ? (activity['cal30mn'] as num).toDouble()
+                            : double.tryParse(activity['cal30mn'].toString()) ?? 0.0;
+                      } else if (activity.containsKey('calories')) {
+                         calories = (activity['calories'] is num)
+                            ? (activity['calories'] as num).toDouble()
+                            : double.tryParse(activity['calories'].toString()) ?? 0.0;
+                      } else if (activity.containsKey('caloriesPer30Min')) {
+                          calories = (activity['caloriesPer30Min'] is num)
+                            ? (activity['caloriesPer30Min'] as num).toDouble()
+                            : double.tryParse(activity['caloriesPer30Min'].toString()) ?? 0.0;
+                      }
+                      
+                      // Safely extract duration
+                      int duration = 30;
+                      if (activity.containsKey('duration')) {
+                         duration = (activity['duration'] is num)
+                            ? (activity['duration'] as num).toInt()
+                            : int.tryParse(activity['duration'].toString()) ?? 30;
+                      }
+
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         decoration: BoxDecoration(
@@ -1200,7 +1084,7 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
                             ),
                           ),
                           subtitle: Text(
-                            '${activity['cal30mn']?.toString() ?? '0'} calories/30min - ${activity['duration'] ?? 30} minutes',
+                            '${calories.toStringAsFixed(1)} calories/${duration} minutes',
                             style: const TextStyle(
                               fontFamily: 'SfProDisplay',
                               color: Colors.grey,
@@ -1294,8 +1178,7 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
     // If we have a selected meal, use that directly
     double carbs = 0;
     if (_selectedMeal != null) {
-      carbs =
-          _selectedMeal!['carbs'] as double; // Base carbs from selected meal
+      carbs = _selectedMeal!['carbs'] as double; // Changed from totalCarbs to carbs
     } else {
       // Otherwise check if the meal exists
       final exists = await checkIfMealExists(meal);
@@ -1386,7 +1269,7 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
       } else {
         // Get meal data
         final mealData = await getMealData(meal);
-        carbs = mealData['carbs'] as double;
+        carbs = mealData['carbs'] as double; // Changed from totalCarbs to carbs
       }
     }
 

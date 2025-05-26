@@ -24,16 +24,6 @@ class _DoctorSigninScreenState extends State<DoctorSigninScreen> {
     });
     try {
       final doctorId = _idController.text.trim();
-      final password = _passwordController.text.trim();
-
-      // Accès provisoire pour doctor1
-      if (doctorId == 'doctor1') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const DoctorHomeScreen()),
-        );
-        return;
-      }
 
       final query = await FirebaseFirestore.instance
           .collection('doctors')
@@ -41,17 +31,10 @@ class _DoctorSigninScreenState extends State<DoctorSigninScreen> {
           .get();
       if (!mounted) return;
       if (query.docs.isNotEmpty) {
-        final doc = query.docs.first;
-        if (doc['password'] == password) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const DoctorHomeScreen()),
-          );
-        } else {
-          setState(() {
-            _errorMessage = "Invalid password.";
-          });
-        }
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DoctorHomeScreen()),
+        );
       } else {
         setState(() {
           _errorMessage = "Doctor ID not found.";

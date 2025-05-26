@@ -16,6 +16,10 @@ class _PatientScreenState extends State<PatientScreen> {
   Map<String, dynamic>? _patientData; // Pour stocker les données du patient
   bool _isLoading = true; // Pour gérer l'état de chargement
 
+  // Données historiques du patient
+  List<Map<String, dynamic>> _glucoseLogs = [];
+  List<Map<String, dynamic>> _injections = [];
+
   // Variables pour l'édition de la Sensitivité à l'Insuline
   bool _isSensitiviteEditing = false;
   final TextEditingController _sensitiviteController = TextEditingController();
@@ -30,12 +34,14 @@ class _PatientScreenState extends State<PatientScreen> {
   void initState() {
     super.initState();
     _loadPatientData(); // Charger les données du patient au démarrage
+    _loadPatientHistory(); // Charger l'historique du patient
   }
 
   @override
   void dispose() {
     _sensitiviteController.dispose();
     _rICRController.dispose();
+    // Dispose chart related controllers if any will be added
     super.dispose();
   }
 
@@ -91,8 +97,39 @@ class _PatientScreenState extends State<PatientScreen> {
       });
       print('Error loading patient data: $e');
     } finally {
+      // We won't set isLoading to false here, as we also need to load history
+    }
+  }
+
+  Future<void> _loadPatientHistory() async {
+    final patientId = widget.patientId;
+    if (patientId.isEmpty) return;
+
+    try {
+      // Load Glucose Logs
+      final glucoseSnapshot = await FirebaseFirestore.instance
+          .collection('glucose_logs')
+          .where('userId', isEqualTo: patientId)
+          .orderBy('timestamp', descending: true)
+          .limit(50) // Limit for performance
+          .get();
+      _glucoseLogs = glucoseSnapshot.docs.map((doc) => doc.data()).toList();
+
+      // Load Injections (containing doseInsuline and glycemie at injection)
+      final injectionSnapshot = await FirebaseFirestore.instance
+          .collection('injections')
+          .where('userId', isEqualTo: patientId)
+          .orderBy('timestamp', descending: true)
+          .limit(50) // Limit for performance
+          .get();
+      _injections = injectionSnapshot.docs.map((doc) => doc.data()).toList();
+
+    } catch (e) {
+      print('Error loading patient history: $e');
+      // Show an error message
+    } finally {
       setState(() {
-        _isLoading = false;
+        _isLoading = false; // Set loading to false after both loads are complete
       });
     }
   }
@@ -162,9 +199,11 @@ class _PatientScreenState extends State<PatientScreen> {
   @override
   Widget build(BuildContext context) {
     String patientName = 'Loading...';
+    String patientPhone = ''; // To display phone number
     if (!_isLoading && _patientData != null) {
       final prenom = _patientData!['prenom'] ?? '';
       final nom = _patientData!['nom'] ?? '';
+      patientPhone = _patientData!['tel'] ?? ''; // Get phone number
       patientName = '';
       if(prenom.isNotEmpty) patientName += prenom;
       if(nom.isNotEmpty) patientName += ' ' + nom;
@@ -190,7 +229,17 @@ class _PatientScreenState extends State<PatientScreen> {
           onPressed: () {
             Navigator.pop(context);
           },
-        ), ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Color(0xFF4A7BF7)),
+            onPressed: _isLoading ? null : () {
+              _loadPatientData();
+              _loadPatientHistory();
+            }, // Refresh data on button press
+          ),
+        ],
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _patientData == null || _patientData!.isEmpty
@@ -239,6 +288,19 @@ class _PatientScreenState extends State<PatientScreen> {
                             if (_calculatedAge != null) ...[
                               Text(
                                 'Age: $_calculatedAge years',
+                                style: const TextStyle(
+                                  fontFamily: 'SfProDisplay',
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w300,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 13),
+                            ],
+                            // Phone Number
+                            if (patientPhone.isNotEmpty) ...[
+                              Text(
+                                'Phone: $patientPhone',
                                 style: const TextStyle(
                                   fontFamily: 'SfProDisplay',
                                   fontSize: 16,
@@ -367,11 +429,11 @@ class _PatientScreenState extends State<PatientScreen> {
         child: ElevatedButton(
           onPressed: () {
             Navigator.push(
-  context,
-  MaterialPageRoute(
-    builder: (context) => RapportScreen(patientId: 'patientIdHere'),
-  ),
-);
+              context,
+              MaterialPageRoute(
+                builder: (context) => RapportScreen(patientId: widget.patientId),
+              ),
+            );
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF4A7BF7),

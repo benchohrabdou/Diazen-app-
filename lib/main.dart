@@ -1,3 +1,4 @@
+import 'package:diazen/firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:diazen/authentication/loginpage.dart';
@@ -5,12 +6,17 @@ import 'package:diazen/screens/mainscreen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
+
+  static const _primaryColor = Color(0xFF4A7BF7);
+  static const _textColor = Colors.black87;
 
   @override
   Widget build(BuildContext context) {
@@ -18,19 +24,20 @@ class MyApp extends StatelessWidget {
       title: 'Diazen',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primaryColor: const Color(0xFF4A7BF7),
+        primaryColor: _primaryColor,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4A7BF7),
-          primary: const Color(0xFF4A7BF7),
+          seedColor: _primaryColor,
+          primary: _primaryColor,
         ),
         fontFamily: 'SfProDisplay',
         textTheme: const TextTheme(
-          bodyLarge: TextStyle(color: Colors.black87),
-          bodyMedium: TextStyle(color: Colors.black87),
-          titleLarge: TextStyle(color: Color(0xFF4A7BF7)),
-          headlineLarge: TextStyle(color: Color(0xFF4A7BF7)),
-          headlineMedium: TextStyle(color: Color(0xFF4A7BF7)),
+          bodyLarge: TextStyle(color: _textColor),
+          bodyMedium: TextStyle(color: _textColor),
+          titleLarge: TextStyle(color: _primaryColor),
+          headlineLarge: TextStyle(color: _primaryColor),
+          headlineMedium: TextStyle(color: _primaryColor),
         ),
+        useMaterial3: true,
       ),
       home: const Loginpage(),
     );
