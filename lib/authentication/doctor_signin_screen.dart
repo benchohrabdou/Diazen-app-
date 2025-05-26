@@ -50,7 +50,7 @@ class _DoctorSigninScreenState extends State<DoctorSigninScreen> {
   }
 
   Future<void> _showForgotIdDialog() async {
-    final TextEditingController emailController = TextEditingController();
+    final TextEditingController matriculeController = TextEditingController();
     String? error;
     await showDialog(
       context: context,
@@ -59,7 +59,8 @@ class _DoctorSigninScreenState extends State<DoctorSigninScreen> {
           builder: (context, setState) {
             return AlertDialog(
               backgroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
               title: const Text(
                 'Forgot ID?',
                 style: TextStyle(
@@ -72,9 +73,9 @@ class _DoctorSigninScreenState extends State<DoctorSigninScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextField(
-                    controller: emailController,
+                    controller: matriculeController,
                     decoration: const InputDecoration(
-                      labelText: 'Enter your email',
+                      labelText: 'Medical License Number',
                       labelStyle: TextStyle(fontFamily: 'SfProDisplay'),
                     ),
                   ),
@@ -82,7 +83,8 @@ class _DoctorSigninScreenState extends State<DoctorSigninScreen> {
                     const SizedBox(height: 8),
                     Text(
                       error!,
-                      style: const TextStyle(color: Colors.red, fontFamily: 'SfProDisplay'),
+                      style: const TextStyle(
+                          color: Colors.red, fontFamily: 'SfProDisplay'),
                     ),
                   ]
                 ],
@@ -100,15 +102,17 @@ class _DoctorSigninScreenState extends State<DoctorSigninScreen> {
                 ),
                 TextButton(
                   onPressed: () async {
-                    final email = emailController.text.trim();
-                    if (email.isEmpty) {
-                      setState(() => error = "Please enter your email.");
+                    final matricule = matriculeController.text.trim();
+                    if (matricule.isEmpty) {
+                      setState(() =>
+                          error = "Please enter your Medical License Number.");
                       return;
                     }
                     final query = await FirebaseFirestore.instance
                         .collection('doctors')
-                        .where('email', isEqualTo: email)
+                        .where('matriculePro', isEqualTo: matricule)
                         .get();
+
                     if (query.docs.isNotEmpty) {
                       final docId = query.docs.first.id;
                       Navigator.of(context).pop();
@@ -116,7 +120,8 @@ class _DoctorSigninScreenState extends State<DoctorSigninScreen> {
                         context: context,
                         builder: (context) => AlertDialog(
                           backgroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
                           title: const Text(
                             'Your Doctor ID',
                             style: TextStyle(
@@ -141,7 +146,8 @@ class _DoctorSigninScreenState extends State<DoctorSigninScreen> {
                         ),
                       );
                     } else {
-                      setState(() => error = "No doctor found with this email.");
+                      setState(() => error =
+                          "No doctor found with this Medical License Number.");
                     }
                   },
                   child: const Text(
@@ -199,7 +205,8 @@ class _DoctorSigninScreenState extends State<DoctorSigninScreen> {
                     decoration: InputDecoration(
                       labelText: 'Doctor ID',
                       hintText: 'Enter your doctor ID',
-                      prefixIcon: const Icon(Icons.badge, color: Color(0xFF4A7BF7)),
+                      prefixIcon:
+                          const Icon(Icons.badge, color: Color(0xFF4A7BF7)),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: const BorderSide(color: Color(0xFF4A7BF7)),
@@ -210,7 +217,8 @@ class _DoctorSigninScreenState extends State<DoctorSigninScreen> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(color: Color(0xFF4A7BF7), width: 2),
+                        borderSide: const BorderSide(
+                            color: Color(0xFF4A7BF7), width: 2),
                       ),
                       filled: true,
                       fillColor: Colors.grey.shade50,
@@ -234,7 +242,6 @@ class _DoctorSigninScreenState extends State<DoctorSigninScreen> {
                     ),
                   ],
                   const SizedBox(height: 6),
-                  
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
