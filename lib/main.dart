@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:diazen/authentication/loginpage.dart';
 import 'package:diazen/screens/mainscreen.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await Hive.initFlutter(); // Ajoute cette ligne pour initialiser Hive
+
   runApp(const MyApp());
 }
 

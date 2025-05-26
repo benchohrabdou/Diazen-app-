@@ -27,7 +27,7 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
   final TextEditingController mealController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  late Box<Map<String, dynamic>> _mealsCache;
+  late Box<dynamic> _mealsCache;
 
   bool unplannedActivity = false;
   bool plannedActivity = false;
@@ -70,9 +70,8 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
   }
 
   Future<void> _initializeCache() async {
-    _mealsCache = await Hive.openBox<Map<String, dynamic>>('meals_cache');
-  }
-
+  _mealsCache = await Hive.openBox('meals_cache');
+}
   void _resetScreen() {
     setState(() {
       unplannedActivity = false;
