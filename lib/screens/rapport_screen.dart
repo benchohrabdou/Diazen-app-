@@ -80,6 +80,8 @@ class _RapportScreenState extends State<RapportScreen> {
 
         // Calculate statistics after loading all data
         _calculateOverallStatistics();
+        _prepareGraphData();
+
       } else {
         setState(() {
           _errorMessage =
@@ -122,6 +124,9 @@ class _RapportScreenState extends State<RapportScreen> {
         final context = data['context'] as String? ?? '';
         final note = data['note'] as String? ?? '';
         final dynamic timestampRaw = data['timestamp'];
+
+        print('Processing glucose log: ${doc.id}');
+        print('  dateStr: $dateStr, timeStr: $timeStr, glucoseValue: $glucoseValue, timestampRaw: $timestampRaw');
 
         DateTime? timestamp;
         if (timestampRaw is Timestamp) {
@@ -179,6 +184,9 @@ class _RapportScreenState extends State<RapportScreen> {
             : data['quantiteGlu'];
         var glycemie = data['glycemie'];
 
+        print('Processing injection record: ${doc.id}');
+        print('  timestampRaw: $timestampRaw, timeStr: $timeStr, units: $units, glycemie: $glycemie');
+
         DateTime? timestamp;
         if (timestampRaw is String) {
           try {
@@ -196,6 +204,7 @@ class _RapportScreenState extends State<RapportScreen> {
             timeStr == null ||
             units == null ||
             glycemie == null) {
+          print('Skipping injection record due to null data.');
           continue;
         }
 
@@ -230,6 +239,7 @@ class _RapportScreenState extends State<RapportScreen> {
         }
       }
     } catch (e) {
+      print('Error in _loadInjections: $e');
       print('Error loading injections: $e');
     }
   }
@@ -247,6 +257,8 @@ class _RapportScreenState extends State<RapportScreen> {
       _maxTimestamp = 1;
       return;
     }
+
+    print('historyData before processing for graphs: $historyData');
 
     // Pre-allocate lists with estimated size
     List<Map<String, dynamic>> allGlucoseData = [];
@@ -297,6 +309,7 @@ class _RapportScreenState extends State<RapportScreen> {
             (data['timestamp'] as DateTime).millisecondsSinceEpoch.toDouble();
 
         _glucoseSpots.add(FlSpot(timestamp, glucoseValue));
+        print('Added glucose spot: $timestamp, $glucoseValue');
 
         if (glucoseValue < _minGlucose) _minGlucose = glucoseValue;
         if (glucoseValue > _maxGlucose) _maxGlucose = glucoseValue;
@@ -342,6 +355,7 @@ class _RapportScreenState extends State<RapportScreen> {
             (data['timestamp'] as DateTime).millisecondsSinceEpoch.toDouble();
 
         _injectionSpots.add(FlSpot(timestamp, doseValue));
+        print('Added injection spot: $timestamp, $doseValue');
 
         if (doseValue < _minInjection) _minInjection = doseValue;
         if (doseValue > _maxInjection) _maxInjection = doseValue;
