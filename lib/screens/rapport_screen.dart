@@ -89,8 +89,8 @@ class _RapportScreenState extends State<RapportScreen> {
           _patientICR = 'N/A'; // Ensure ICR is N/A if user doc is missing
         });
         print('Patient document not found for ID ${widget.patientId}');
-      }
-    } catch (e) {
+        }
+      } catch (e) {
       setState(() {
         _errorMessage = 'Error loading report data: $e';
         _patientICR = 'N/A'; // Ensure ICR is N/A on error
@@ -107,15 +107,15 @@ class _RapportScreenState extends State<RapportScreen> {
     try {
       final QuerySnapshot glucoseSnapshot = await _firestore
           .collection('glucose_logs')
-          .where('userId', isEqualTo: widget.patientId)
+            .where('userId', isEqualTo: widget.patientId)
           .orderBy('timestamp', descending: true)
           .limit(500) // Increase limit for all-time calculations
-          .get();
+            .get();
 
       print('Found ${glucoseSnapshot.docs.length} glucose records');
       print(
           'Patient ID being used for glucose logs query: ${widget.patientId}');
-
+      
       for (var doc in glucoseSnapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
         final dateStr = data['date'] as String? ?? '';
@@ -383,7 +383,7 @@ class _RapportScreenState extends State<RapportScreen> {
           (allInjectionData.last['timestamp'] as DateTime)
               .millisecondsSinceEpoch
               .toDouble();
-
+    
       _minTimestamp = math.min(minGlucoseTimestamp, minInjectionTimestamp);
       _maxTimestamp = math.max(maxGlucoseTimestamp, maxInjectionTimestamp);
     } else if (allInjectionData.isNotEmpty) {
@@ -659,7 +659,7 @@ class _RapportScreenState extends State<RapportScreen> {
                                   fontWeight: FontWeight.bold,
                                   fontFamily: 'SfProDisplay',
                                   color: Color(0xFF4A7BF7),
-                                ),
+                                  ),
                                 textAlign: TextAlign.center,
                               ),
                               const SizedBox(height: 10),
@@ -700,7 +700,7 @@ class _RapportScreenState extends State<RapportScreen> {
                                       rightTitles: const AxisTitles(
                                           sideTitles:
                                               SideTitles(showTitles: false)),
-                                    ),
+                                ),
                                     borderData: FlBorderData(
                                       show: true,
                                       border: Border.all(color: Colors.black26),
@@ -755,7 +755,7 @@ class _RapportScreenState extends State<RapportScreen> {
                                   fontFamily: 'SfProDisplay',
                                 ),
                                 textAlign: TextAlign.center,
-                              ),
+                          ),
                           const SizedBox(height: 20),
                             ],
 
@@ -770,7 +770,7 @@ class _RapportScreenState extends State<RapportScreen> {
                               color: Color(0xFF4A7BF7),
                             ),
                               textAlign: TextAlign.center,
-                            ),
+                          ),
                             const SizedBox(height: 10),
                             Card(
                               margin:

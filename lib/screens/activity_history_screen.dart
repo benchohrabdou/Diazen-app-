@@ -103,7 +103,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> with Auto
 
                  final String? name = data['nom'] as String?;
                  final dynamic durationRaw = data['duration'];
-                 final dynamic caloriesRaw = data['calories'];
+                 final dynamic caloriesRaw = data['cal30mn'];
                  final dynamic timestampRaw = data['timestamp'];
 
                  double duration = 0.0;
@@ -309,7 +309,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> with Auto
                             ),
                             const SizedBox(height: 4.0),
                             Text(
-                              'Calories: ${activity['calories'] ?? 'N/A'}',
+                              'Calories: ${activity['calories'] != null ? activity['calories'].round() : 'N/A'}',
                               style: const TextStyle(
                                 fontSize: 16.0,
                                 fontFamily: 'SfProDisplay',
