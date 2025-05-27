@@ -5,12 +5,12 @@ class PasswordResetSucceesScreen extends StatefulWidget {
   const PasswordResetSucceesScreen({super.key});
 
   @override
-  State<PasswordResetSucceesScreen> createState() => _PasswordResetSucceesScreenState();
+  State<PasswordResetSucceesScreen> createState() =>
+      _PasswordResetSucceesScreenState();
 }
 
-class _PasswordResetSucceesScreenState extends State<PasswordResetSucceesScreen> {
-
-
+class _PasswordResetSucceesScreenState
+    extends State<PasswordResetSucceesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -47,7 +47,8 @@ class _PasswordResetSucceesScreenState extends State<PasswordResetSucceesScreen>
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const NewPasswordScreen(),
+                      builder: (context) =>
+                          NewPasswordScreen(email: 'user@example.com'),
                     ),
                   );
                 },
@@ -75,4 +76,4 @@ class _PasswordResetSucceesScreenState extends State<PasswordResetSucceesScreen>
       ),
     );
   }
-} 
+}

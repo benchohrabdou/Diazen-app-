@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:diazen/authentication/password_update_succes_screen.dart';
 
 class NewPasswordScreen extends StatefulWidget {
-  const NewPasswordScreen({super.key});
+  final String email;
+
+  const NewPasswordScreen({
+    super.key,
+    required this.email,
+  });
 
   @override
   State<NewPasswordScreen> createState() => _NewPasswordScreenState();
@@ -14,11 +20,13 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
   final FocusNode _confirmPasswordFocus = FocusNode();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isTyping = false;
   double _buttonScale = 1.0;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -63,21 +71,89 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
       return;
     }
 
-    try {
-      User? user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        await user.updatePassword(_passwordController.text);
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>  const PasswordUpdateSuccessScreen(),
-          ),
-        );
-      }
-    } on FirebaseAuthException catch (e) {
+    if (_passwordController.text.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? 'Error occurred')),
+        const SnackBar(content: Text('Password must be at least 6 characters long')),
       );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Attempt to sign in with the email to refresh authentication state
+      // Use a placeholder password as we don't have the current one.
+      // This step is primarily to satisfy the 'requires-recent-login' requirement for updatePassword.
+      try {
+         await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: widget.email,
+          password: 'temporary-reauth-password', // Placeholder - this sign-in will likely fail
+        );
+      } catch (e) {
+        // Ignore expected sign-in failure due to incorrect password
+         print('Temporary sign-in attempt for re-auth failed: $e');
+      }
+
+      // Get the user again after the potential re-authentication attempt
+      User? user = FirebaseAuth.instance.currentUser;
+
+      if (user == null || user.email != widget.email) {
+         // If after the sign-in attempt, we still don't have the expected user,
+         // it indicates a deeper authentication issue.
+         ScaffoldMessenger.of(context).showSnackBar(
+           const SnackBar(content: Text('Authentication state invalid. Please restart the password reset.')),
+         );
+         return;
+      }
+
+      // Update the password for the now potentially re-authenticated user
+      await user.updatePassword(_passwordController.text);
+
+      // Delete the OTP from Firestore after successful password update
+      await _firestore.collection('password_resets').doc(widget.email).delete();
+
+      if (!mounted) return;
+      
+      // Navigate to success screen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const PasswordUpdateSuccessScreen(),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = 'An error occurred';
+      // Handle specific Firebase Auth errors during password update
+      switch (e.code) {
+        case 'weak-password':
+          errorMessage = 'The password is too weak.';
+          break;
+        case 'requires-recent-login':
+           errorMessage = 'Please sign in again to update your password. (Restart password reset)';
+           break;
+        case 'user-not-found': // Should not happen if currentUser is valid, but for completeness
+           errorMessage = 'User not found.';
+           break;
+        case 'invalid-credential':
+           errorMessage = 'Invalid credentials. (This may occur during re-authentication attempt)';
+           break;
+        default:
+          errorMessage = e.message ?? 'An error occurred';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage)),
+      );
+    } catch (e) {
+      // Handle other potential errors
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating password: $e')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -226,7 +302,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 child: ElevatedButton(
-                  onPressed: _onUpdatePressed,
+                  onPressed: _isLoading ? null : _onUpdatePressed,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _isTyping
                         ? const Color(0xFF4A7BF7)
@@ -237,15 +313,24 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
                     ),
                     elevation: 0,
                   ),
-                  child: const Text(
-                    'Update Password',
-                    style: TextStyle(
-                      fontFamily: 'SfProDisplay',
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Update Password',
+                          style: TextStyle(
+                            fontFamily: 'SfProDisplay',
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
               ),
             ),

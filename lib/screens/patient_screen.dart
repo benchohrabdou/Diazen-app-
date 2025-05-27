@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:diazen/screens/rapport_screen.dart';
-
 
 class PatientScreen extends StatefulWidget {
   final String patientId; // Correction : recevoir l'ID du patient
@@ -24,9 +23,13 @@ class _PatientScreenState extends State<PatientScreen> {
   bool _isSensitiviteEditing = false;
   final TextEditingController _sensitiviteController = TextEditingController();
 
-  // Variables pour l'édition du rICR
+  // Variables for l'édition du rICR
   bool _isRICREditing = false;
   final TextEditingController _rICRController = TextEditingController();
+
+  // Add variables for Target Glucose
+  bool _isTargetGlucoseEditing = false;
+  final TextEditingController _targetGlucoseController = TextEditingController();
 
   int? _calculatedAge;
 
@@ -41,6 +44,7 @@ class _PatientScreenState extends State<PatientScreen> {
   void dispose() {
     _sensitiviteController.dispose();
     _rICRController.dispose();
+    _targetGlucoseController.dispose(); // Dispose the new controller
     // Dispose chart related controllers if any will be added
     super.dispose();
   }
@@ -49,7 +53,8 @@ class _PatientScreenState extends State<PatientScreen> {
     final maintenant = DateTime.now();
     int age = maintenant.year - dateNaissance.year;
     if (maintenant.month < dateNaissance.month ||
-        (maintenant.month == dateNaissance.month && maintenant.day < dateNaissance.day)) {
+        (maintenant.month == dateNaissance.month &&
+            maintenant.day < dateNaissance.day)) {
       age--;
     }
     return age;
@@ -61,8 +66,8 @@ class _PatientScreenState extends State<PatientScreen> {
     });
     try {
       final doc = await FirebaseFirestore.instance
-          .collection('users') // Collection des utilisateurs
-          .doc(widget.patientId) // Utiliser l'ID passé
+          .collection('users')
+          .doc(widget.patientId)
           .get();
 
       if (!mounted) return;
@@ -70,8 +75,19 @@ class _PatientScreenState extends State<PatientScreen> {
       if (doc.exists) {
         setState(() {
           _patientData = doc.data();
-          _sensitiviteController.text = (_patientData?['sensitiviteInsuline'] ?? '').toString();
-          _rICRController.text = (_patientData?['rICR'] ?? '').toString();
+          _sensitiviteController.text =
+              (_patientData?['sensitiviteInsuline'] ?? '').toString();
+          // Safely load rICR, default to empty string if null or not present
+          final dynamic rawRICR = _patientData?['ratioInsulineGlucide'];
+          if (rawRICR != null) {
+            _rICRController.text = rawRICR.toString();
+          } else {
+            _rICRController.text = '';
+          }
+
+          // Load Target Glucose, default to '100' if not present
+          final dynamic rawTargetGlucose = _patientData?['targetGlucose'];
+          _targetGlucoseController.text = (rawTargetGlucose != null) ? rawTargetGlucose.toString() : '100';
 
           final dateNaissanceRaw = _patientData?['dateNaissance'];
           if (dateNaissanceRaw != null) {
@@ -90,12 +106,14 @@ class _PatientScreenState extends State<PatientScreen> {
         setState(() {
           _patientData = {};
         });
+        print('Patient document with ID ${widget.patientId} does not exist.');
       }
     } catch (e) {
       setState(() {
-        _patientData = {};
+        _patientData = {}; // Set to empty to indicate loading failed
       });
-      print('Error loading patient data: $e');
+      print('Error loading patient data for ID ${widget.patientId}: $e');
+      // You might want to show a user-friendly error message here too
     } finally {
       // We won't set isLoading to false here, as we also need to load history
     }
@@ -123,13 +141,13 @@ class _PatientScreenState extends State<PatientScreen> {
           .limit(50) // Limit for performance
           .get();
       _injections = injectionSnapshot.docs.map((doc) => doc.data()).toList();
-
     } catch (e) {
       print('Error loading patient history: $e');
       // Show an error message
     } finally {
       setState(() {
-        _isLoading = false; // Set loading to false after both loads are complete
+        _isLoading =
+            false; // Set loading to false after both loads are complete
       });
     }
   }
@@ -138,14 +156,15 @@ class _PatientScreenState extends State<PatientScreen> {
     setState(() {
       _isSensitiviteEditing = !_isSensitiviteEditing;
       if (!_isSensitiviteEditing) {
-        _sensitiviteController.text = (_patientData?['sensitiviteInsuline'] ?? '').toString();
+        _sensitiviteController.text =
+            (_patientData?['sensitiviteInsuline'] ?? '').toString();
       }
     });
   }
 
   Future<void> _saveSensitivite() async {
     final newValue = double.tryParse(_sensitiviteController.text);
-    if (newValue != null) {
+    if (newValue != null && newValue >= 0) { // Allow 0 for sensitivity?
       try {
         await FirebaseFirestore.instance
             .collection('users')
@@ -155,13 +174,16 @@ class _PatientScreenState extends State<PatientScreen> {
           _patientData!['sensitiviteInsuline'] = newValue;
           _isSensitiviteEditing = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sensitivité à l\'insuline sauvegardée.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Sensitivité à l\'insuline sauvegardée.')));
       } catch (e) {
-        print('Error saving sensitivite: $e');
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erreur lors de la sauvegarde.')));
+        print('Error saving sensitivite for ID ${widget.patientId}: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Erreur lors de la sauvegarde.')));
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Valeur invalide.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Valeur invalide. Veuillez entrer un nombre valide pour la sensitivité à l\'insuline.')));
     }
   }
 
@@ -169,30 +191,69 @@ class _PatientScreenState extends State<PatientScreen> {
     setState(() {
       _isRICREditing = !_isRICREditing;
       if (!_isRICREditing) {
-        _rICRController.text = (_patientData?['rICR'] ?? '').toString();
+        _rICRController.text = (_patientData?['ratioInsulineGlucide'] ?? '').toString();
       }
     });
   }
 
   Future<void> _saveRICR() async {
     final newValue = double.tryParse(_rICRController.text);
-    if (newValue != null) {
+    if (newValue != null && newValue > 0) {
       try {
         await FirebaseFirestore.instance
             .collection('users')
             .doc(widget.patientId)
-            .update({'rICR': newValue});
+            .update({'ratioInsulineGlucide': newValue});
         setState(() {
-          _patientData!['rICR'] = newValue;
+          _patientData!['ratioInsulineGlucide'] = newValue; // Update local state immediately
           _isRICREditing = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('rICR sauvegardé.')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('ICR sauvegardé.')));
       } catch (e) {
-        print('Error saving rICR: $e');
+        print('Error saving ICR for ID ${widget.patientId}: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Erreur lors de la sauvegarde.')));
+      }
+    } else if (newValue != null && newValue <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Valeur invalide. L\'ICR doit être supérieur à 0.')));
+    } else {
+      // Handle case where input is not a valid number
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Veuillez entrer un nombre valide pour l\'ICR.')));
+    }
+  }
+
+  // Add toggle and save functions for Target Glucose
+  void _toggleTargetGlucoseEditing() {
+    setState(() {
+      _isTargetGlucoseEditing = !_isTargetGlucoseEditing;
+      if (!_isTargetGlucoseEditing) {
+        _targetGlucoseController.text = (_patientData?['targetGlucose'] ?? '100').toString();
+      }
+    });
+  }
+
+  Future<void> _saveTargetGlucose() async {
+    final newValue = double.tryParse(_targetGlucoseController.text);
+    if (newValue != null && newValue >= 0) { // Target glucose can be 0 or more
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.patientId)
+            .update({'targetGlucose': newValue});
+        setState(() {
+          _patientData!['targetGlucose'] = newValue;
+          _isTargetGlucoseEditing = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Objectif de glycémie sauvegardé.')));
+      } catch (e) {
+        print('Error saving target glucose for ID ${widget.patientId}: $e');
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erreur lors de la sauvegarde.')));
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Valeur invalide.')));
+       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Valeur invalide. Veuillez entrer un nombre valide pour l\'objectif de glycémie.')));
     }
   }
 
@@ -205,9 +266,9 @@ class _PatientScreenState extends State<PatientScreen> {
       final nom = _patientData!['nom'] ?? '';
       patientPhone = _patientData!['tel'] ?? ''; // Get phone number
       patientName = '';
-      if(prenom.isNotEmpty) patientName += prenom;
-      if(nom.isNotEmpty) patientName += ' ' + nom;
-      if(patientName.isEmpty) patientName = 'Patient';
+      if (prenom.isNotEmpty) patientName += prenom;
+      if (nom.isNotEmpty) patientName += ' ' + nom;
+      if (patientName.isEmpty) patientName = 'Patient';
     } else if (!_isLoading && _patientData == null) {
       patientName = 'Patient Not Found';
     }
@@ -216,14 +277,14 @@ class _PatientScreenState extends State<PatientScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
-          'Patient ', 
+          'Patient ',
           style: const TextStyle(
             fontFamily: 'SfProDisplay',
             color: Color(0xFF4A7BF7),
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: Colors.white, 
+        backgroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF4A7BF7)),
           onPressed: () {
@@ -233,10 +294,12 @@ class _PatientScreenState extends State<PatientScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: Color(0xFF4A7BF7)),
-            onPressed: _isLoading ? null : () {
-              _loadPatientData();
-              _loadPatientHistory();
-            }, // Refresh data on button press
+            onPressed: _isLoading
+                ? null
+                : () {
+                    _loadPatientData();
+                    _loadPatientHistory();
+                  }, // Refresh data on button press
           ),
         ],
       ),
@@ -246,7 +309,8 @@ class _PatientScreenState extends State<PatientScreen> {
               ? const Center(
                   child: Text(
                     'Could not load patient data.',
-                    style: TextStyle(fontFamily: 'SfProDisplay', color: Colors.black54),
+                    style: TextStyle(
+                        fontFamily: 'SfProDisplay', color: Colors.black54),
                   ),
                 )
               : SingleChildScrollView(
@@ -254,7 +318,7 @@ class _PatientScreenState extends State<PatientScreen> {
                     padding: const EdgeInsets.all(16.0),
                     child: Card(
                       color: const Color(0xFF4A7BF7),
-                       shape: RoundedRectangleBorder(
+                      shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
                       elevation: 4,
@@ -269,18 +333,18 @@ class _PatientScreenState extends State<PatientScreen> {
                                 fontFamily: 'SfProDisplay',
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                 color: Colors.white,
+                                color: Colors.white,
                               ),
                             ),
                             const SizedBox(height: 16),
                             //name
                             Text(
-                               'Name: $patientName',
+                              'Name: $patientName',
                               style: const TextStyle(
                                 fontFamily: 'SfProDisplay',
                                 fontSize: 16,
                                 fontWeight: FontWeight.w300,
-                                 color: Colors.white,
+                                color: Colors.white,
                               ),
                             ),
                             const SizedBox(height: 13),
@@ -327,7 +391,7 @@ class _PatientScreenState extends State<PatientScreen> {
                             Row(
                               children: [
                                 const Text(
-                                  'insulin sensitivity: ',
+                                  'Insulin Sensitivity: ',
                                   style: TextStyle(
                                     fontFamily: 'SfProDisplay',
                                     fontSize: 16,
@@ -339,32 +403,55 @@ class _PatientScreenState extends State<PatientScreen> {
                                   child: _isSensitiviteEditing
                                       ? TextField(
                                           controller: _sensitiviteController,
-                                          keyboardType: TextInputType.numberWithOptions(decimal: true),
-                                          style: const TextStyle(fontFamily: 'SfProDisplay', color: Colors.white),
+                                          keyboardType:
+                                              TextInputType.numberWithOptions(
+                                                  decimal: true),
+                                          style: const TextStyle(
+                                              fontFamily: 'SfProDisplay',
+                                              color: Colors.white),
                                           decoration: InputDecoration(
                                             isDense: true,
-                                            contentPadding: const EdgeInsets.symmetric(vertical: 8.0),
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                    vertical: 8.0),
                                             border: const OutlineInputBorder(),
-                                            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white54)),
-                                            focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white)),
-                                            hintStyle: TextStyle(fontFamily: 'SfProDisplay', color: Colors.white70),
+                                            enabledBorder: OutlineInputBorder(
+                                                borderSide: BorderSide(
+                                                    color: Colors.white54)),
+                                            focusedBorder: OutlineInputBorder(
+                                                borderSide: BorderSide(
+                                                    color: Colors.white)),
+                                            hintStyle: TextStyle(
+                                                fontFamily: 'SfProDisplay',
+                                                color: Colors.white70),
                                           ),
                                         )
                                       : Text(
-                                          (_patientData?['sensitiviteInsuline'] ?? 'N/A').toString(),
-                                          style: const TextStyle(fontFamily: 'SfProDisplay', fontSize: 16, color: Colors.white),
+                                          (_patientData?[
+                                                      'sensitiviteInsuline'] ??
+                                                  'N/A')
+                                              .toString(),
+                                          style: const TextStyle(
+                                              fontFamily: 'SfProDisplay',
+                                              fontSize: 16,
+                                              color: Colors.white),
                                         ),
                                 ),
                                 IconButton(
                                   icon: Icon(
-                                    _isSensitiviteEditing ? Icons.check : Icons.edit,
+                                    _isSensitiviteEditing
+                                        ? Icons.check
+                                        : Icons.edit,
                                     color: Colors.white,
                                   ),
-                                  onPressed: _isSensitiviteEditing ? _saveSensitivite : _toggleSensitiviteEditing,
+                                  onPressed: _isSensitiviteEditing
+                                      ? _saveSensitivite
+                                      : _toggleSensitiviteEditing,
                                 ),
-                                if(_isSensitiviteEditing)
-                                IconButton(
-                                    icon: const Icon(Icons.close, color: Colors.white70),
+                                if (_isSensitiviteEditing)
+                                  IconButton(
+                                    icon: const Icon(Icons.close,
+                                        color: Colors.white70),
                                     onPressed: _toggleSensitiviteEditing,
                                   ),
                               ],
@@ -386,20 +473,48 @@ class _PatientScreenState extends State<PatientScreen> {
                                   child: _isRICREditing
                                       ? TextField(
                                           controller: _rICRController,
-                                          keyboardType: TextInputType.numberWithOptions(decimal: true),
-                                          style: const TextStyle(fontFamily: 'SfProDisplay', color: Colors.white),
+                                          keyboardType:
+                                              TextInputType.numberWithOptions(
+                                                  decimal: true),
+                                          style: const TextStyle(
+                                              fontFamily: 'SfProDisplay',
+                                              color: Colors.white),
                                           decoration: InputDecoration(
                                             isDense: true,
-                                            contentPadding: const EdgeInsets.symmetric(vertical: 8.0),
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                    vertical: 8.0),
                                             border: const OutlineInputBorder(),
-                                            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white54)),
-                                            focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white)),
-                                            hintStyle: TextStyle(fontFamily: 'SfProDisplay', color: Colors.white70),
+                                            enabledBorder: OutlineInputBorder(
+                                                borderSide: BorderSide(
+                                                    color: Colors.white54)),
+                                            focusedBorder: OutlineInputBorder(
+                                                borderSide: BorderSide(
+                                                    color: Colors.white)),
+                                            hintStyle: TextStyle(
+                                                fontFamily: 'SfProDisplay',
+                                                color: Colors.white70),
                                           ),
                                         )
                                       : Text(
-                                          (_patientData?['rICR'] ?? 'N/A').toString(),
-                                          style: const TextStyle(fontFamily: 'SfProDisplay', fontSize: 16, color: Colors.white),
+                                          (_patientData?['ratioInsulineGlucide'] == null ||
+                                                  _patientData!['ratioInsulineGlucide']
+                                                      .toString()
+                                                      .isEmpty)
+                                              ? 'N/A'
+                                              : (_patientData!['ratioInsulineGlucide'] is num
+                                                  ? _patientData!['ratioInsulineGlucide']
+                                                      .toString()
+                                                  : (double.tryParse(
+                                                              _patientData![
+                                                                      'ratioInsulineGlucide']
+                                                                  .toString())
+                                                          ?.toString() ??
+                                                      'N/A')),
+                                          style: const TextStyle(
+                                              fontFamily: 'SfProDisplay',
+                                              fontSize: 16,
+                                              color: Colors.white),
                                         ),
                                 ),
                                 IconButton(
@@ -407,12 +522,77 @@ class _PatientScreenState extends State<PatientScreen> {
                                     _isRICREditing ? Icons.check : Icons.edit,
                                     color: Colors.white,
                                   ),
-                                  onPressed: _isRICREditing ? _saveRICR : _toggleRICREditing,
+                                  onPressed: _isRICREditing
+                                      ? _saveRICR
+                                      : _toggleRICREditing,
                                 ),
-                                if(_isRICREditing)
+                                if (_isRICREditing)
+                                  IconButton(
+                                    icon: const Icon(Icons.close,
+                                        color: Colors.white70),
+                                    onPressed: _toggleRICREditing,
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 13),
+                            // Target Glucose
+                            Row(
+                              children: [
+                                const Text(
+                                  'Target Glucose (mg/dL): ',
+                                  style: TextStyle(
+                                    fontFamily: 'SfProDisplay',
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w300,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: _isTargetGlucoseEditing
+                                      ? TextField(
+                                          controller: _targetGlucoseController,
+                                          keyboardType:
+                                              TextInputType.numberWithOptions(
+                                                  decimal: true),
+                                          style: const TextStyle(
+                                              fontFamily: 'SfProDisplay',
+                                              color: Colors.white),
+                                          decoration: InputDecoration(
+                                            isDense: true,
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                    vertical: 8.0),
+                                            border: const OutlineInputBorder(),
+                                            enabledBorder: OutlineInputBorder(
+                                                borderSide: BorderSide(
+                                                    color: Colors.white54)),
+                                            focusedBorder: OutlineInputBorder(
+                                                borderSide: BorderSide(
+                                                    color: Colors.white)),
+                                            hintStyle: TextStyle(
+                                                fontFamily: 'SfProDisplay',
+                                                color: Colors.white70),
+                                          ),
+                                        )
+                                      : Text(
+                                          (_patientData?['targetGlucose'] ?? '100').toString(),
+                                          style: const TextStyle(
+                                              fontFamily: 'SfProDisplay',
+                                              fontSize: 16,
+                                              color: Colors.white),
+                                        ),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    _isTargetGlucoseEditing ? Icons.check : Icons.edit,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed: _isTargetGlucoseEditing ? _saveTargetGlucose : _toggleTargetGlucoseEditing,
+                                ),
+                                if(_isTargetGlucoseEditing)
                                 IconButton(
                                     icon: const Icon(Icons.close, color: Colors.white70),
-                                    onPressed: _toggleRICREditing,
+                                    onPressed: _toggleTargetGlucoseEditing,
                                   ),
                               ],
                             ),
@@ -423,7 +603,7 @@ class _PatientScreenState extends State<PatientScreen> {
                     ),
                   ),
                 ),
-                //consulter rapport button
+      //consulter rapport button
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16.0),
         child: ElevatedButton(
@@ -431,7 +611,8 @@ class _PatientScreenState extends State<PatientScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => RapportScreen(patientId: widget.patientId),
+                builder: (context) =>
+                    RapportScreen(patientId: widget.patientId),
               ),
             );
           },
@@ -451,7 +632,6 @@ class _PatientScreenState extends State<PatientScreen> {
           child: const Text('view report'),
         ),
       ),
-
     );
   }
 }

@@ -39,6 +39,7 @@ class _RapportScreenState extends State<RapportScreen> {
   String _minGlucoseTimestamp = 'N/A';
   String _maxGlucoseTimestamp = 'N/A';
   String _avgInsulin = 'N/A';
+  String _patientICR = 'N/A';
 
   @override
   void initState() {
@@ -50,29 +51,49 @@ class _RapportScreenState extends State<RapportScreen> {
     setState(() {
       _isLoading = true;
       _errorMessage = '';
-      historyData = {};
     });
 
     try {
-      print('Loading report data for patient: ${widget.patientId}');
+      // Load patient's medical information first
+      final userDoc =
+          await _firestore.collection('users').doc(widget.patientId).get();
 
-      // Load all data in parallel
-      await Future.wait([
-        _loadGlucoseLogs(),
-        _loadInjections(),
-      ]);
+      if (userDoc.exists) {
+        final userData = userDoc.data();
+        // Safely load rICR for display
+        final dynamic rawRICR = userData?['ratioInsulineGlucide'];
+        if (rawRICR != null) {
+          setState(() {
+            _patientICR = rawRICR.toString();
+          });
+        } else {
+          setState(() {
+            _patientICR = 'N/A';
+          });
+        }
 
-      // Prepare data for the graphs
-      _prepareGraphData();
+        // Continue with loading other data
+        await Future.wait([
+          _loadGlucoseLogs(),
+          _loadInjections(),
+        ]);
 
-      // Calculate and store overall statistics
-      _calculateOverallStatistics();
-    } catch (e, stackTrace) {
-      print('Error loading report data: $e');
-      print('Stack trace: $stackTrace');
+        // Calculate statistics after loading all data
+        _calculateOverallStatistics();
+      } else {
+        setState(() {
+          _errorMessage =
+              'Patient document not found for ID ${widget.patientId}';
+          _patientICR = 'N/A'; // Ensure ICR is N/A if user doc is missing
+        });
+        print('Patient document not found for ID ${widget.patientId}');
+      }
+    } catch (e) {
       setState(() {
-        _errorMessage = 'Erreur de chargement des données. Veuillez réessayer.';
+        _errorMessage = 'Error loading report data: $e';
+        _patientICR = 'N/A'; // Ensure ICR is N/A on error
       });
+      print('Error loading report data: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -502,10 +523,10 @@ class _RapportScreenState extends State<RapportScreen> {
                     )
                   : SingleChildScrollView(
                       child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
+                        children: [
                             // Glucose Chart
                             if (_glucoseSpots.isNotEmpty) ...[
                               const Text(
@@ -521,8 +542,8 @@ class _RapportScreenState extends State<RapportScreen> {
                               const SizedBox(height: 10),
                               AspectRatio(
                                 aspectRatio: 1.7,
-                                child: LineChart(
-                                  LineChartData(
+                            child: LineChart(
+                              LineChartData(
                                     gridData: FlGridData(
                                       show: true,
                                       drawVerticalLine: true,
@@ -565,16 +586,16 @@ class _RapportScreenState extends State<RapportScreen> {
                                     maxX: _maxTimestamp,
                                     minY: _minGlucose,
                                     maxY: _maxGlucose,
-                                    lineBarsData: [
-                                      LineChartBarData(
+                                lineBarsData: [
+                                  LineChartBarData(
                                         spots: _glucoseSpots,
-                                        isCurved: true,
+                                    isCurved: true,
                                         color: Colors.orange,
-                                        barWidth: 3,
-                                        dotData: FlDotData(show: true),
-                                        belowBarData: BarAreaData(show: false),
-                                      ),
-                                    ],
+                                    barWidth: 3,
+                                    dotData: FlDotData(show: true),
+                                    belowBarData: BarAreaData(show: false),
+                                  ),
+                                ],
                                     lineTouchData: LineTouchData(
                                       touchTooltipData: LineTouchTooltipData(
                                         tooltipBgColor:
@@ -670,10 +691,10 @@ class _RapportScreenState extends State<RapportScreen> {
                                       show: true,
                                       border: Border.all(color: Colors.black26),
                                     ),
-                                    minX: _minTimestamp,
-                                    maxX: _maxTimestamp,
-                                    minY: _minInjection,
-                                    maxY: _maxInjection,
+                                minX: _minTimestamp,
+                                maxX: _maxTimestamp,
+                                minY: _minInjection,
+                                maxY: _maxInjection,
                                     lineBarsData: [
                                       LineChartBarData(
                                         spots: _injectionSpots,
@@ -684,32 +705,32 @@ class _RapportScreenState extends State<RapportScreen> {
                                         belowBarData: BarAreaData(show: false),
                                       ),
                                     ],
-                                    lineTouchData: LineTouchData(
-                                      touchTooltipData: LineTouchTooltipData(
+                                lineTouchData: LineTouchData(
+                                  touchTooltipData: LineTouchTooltipData(
                                         tooltipBgColor:
                                             Colors.blueGrey.withOpacity(0.8),
                                         getTooltipItems:
                                             (List<LineBarSpot> touchedSpots) {
-                                          return touchedSpots.map((spot) {
+                                      return touchedSpots.map((spot) {
                                             final dateTime = DateTime
                                                 .fromMillisecondsSinceEpoch(
                                                     spot.x.toInt());
-                                            return LineTooltipItem(
-                                              '${DateFormat('dd/MM HH:mm').format(dateTime)}\n'
+                                        return LineTooltipItem(
+                                          '${DateFormat('dd/MM HH:mm').format(dateTime)}\n'
                                               'Dose: ${spot.y.toStringAsFixed(1)} unités',
-                                              const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 12,
-                                                fontFamily: 'SfProDisplay',
-                                              ),
-                                            );
-                                          }).toList();
-                                        },
-                                      ),
-                                    ),
+                                          const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontFamily: 'SfProDisplay',
+                                          ),
+                                        );
+                                      }).toList();
+                                    },
                                   ),
                                 ),
                               ),
+                            ),
+                          ),
                               const SizedBox(height: 30),
                               const Text(
                                 'This graph shows the patient\'s insulin doses administered over time.',
@@ -721,19 +742,19 @@ class _RapportScreenState extends State<RapportScreen> {
                                 ),
                                 textAlign: TextAlign.center,
                               ),
-                              const SizedBox(height: 20),
+                          const SizedBox(height: 20),
                             ],
 
                             const SizedBox(height: 30),
                             // Overall Statistics Section
-                            const Text(
+                          const Text(
                               'Overall Statistics',
-                              style: TextStyle(
+                            style: TextStyle(
                                 fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.bold,
                                 fontFamily: 'SfProDisplay',
-                                color: Color(0xFF4A7BF7),
-                              ),
+                              color: Color(0xFF4A7BF7),
+                            ),
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 10),
@@ -782,6 +803,48 @@ class _RapportScreenState extends State<RapportScreen> {
                             ),
                           ],
                         ),
+                      ),
+                    ),
+    );
+  }
+
+  Widget _buildPatientInfo() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Patient Information',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'SfProDisplay',
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Text(
+                  'ICR: ',
+                  style: TextStyle(
+                    fontFamily: 'SfProDisplay',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  _patientICR,
+                  style: const TextStyle(
+                    fontFamily: 'SfProDisplay',
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+            // ... other patient information ...
+                        ],
                       ),
                     ),
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:diazen/authentication/loginpage.dart'; // Import the Loginpage
 
 class PasswordUpdateSuccessScreen extends StatefulWidget {
   const PasswordUpdateSuccessScreen({super.key});
@@ -79,13 +80,13 @@ class _PasswordUpdateSuccessScreenState extends State<PasswordUpdateSuccessScree
                             width: 80,
                             height: 80,
                             decoration: const BoxDecoration(
-                              color: Color(0xFFC7D2FE),
+                              color: Color(0xFFC7D2FE), // Light blue from other screens
                               shape: BoxShape.circle,
                             ),
                             child: const Center(
                               child: Icon(
                                 Icons.check_rounded,
-                                color: Color(0xFF4361EE),
+                                color: Color(0xFF4A7BF7), // Matching the blue from other screens
                                 size: 40,
                               ),
                             ),
@@ -103,7 +104,7 @@ class _PasswordUpdateSuccessScreenState extends State<PasswordUpdateSuccessScree
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1F2937),
+                      color: Color(0xFF1F2937), // Keep as is or adjust based on theme
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -115,7 +116,7 @@ class _PasswordUpdateSuccessScreenState extends State<PasswordUpdateSuccessScree
                     'Congratulations! Your password has been changed. Click continue to login',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Color(0xFF6B7280),
+                      color: Color(0xFF6B7280), // Keep as is or adjust based on theme
                       height: 1.5,
                     ),
                     textAlign: TextAlign.center,
@@ -128,15 +129,15 @@ class _PasswordUpdateSuccessScreenState extends State<PasswordUpdateSuccessScree
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Navigating to login screen...'),
-                            behavior: SnackBarBehavior.floating,
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const Loginpage(), // Navigate to Loginpage
                           ),
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4361EE),
+                        backgroundColor: const Color(0xFF4A7BF7), // Matching the blue from other screens
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
@@ -145,7 +146,7 @@ class _PasswordUpdateSuccessScreenState extends State<PasswordUpdateSuccessScree
                         elevation: 0,
                       ),
                       child: const Text(
-                        'Update Password',
+                        'Continue to Login', // Changed button text
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,

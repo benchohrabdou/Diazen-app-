@@ -17,9 +17,6 @@ class CalculateDoseScreen extends StatefulWidget {
 }
 
 class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
-  static const double _defaultTargetGlucose = 100.0;
-  static const double _defaultISF = 50.0;
-  static const double _defaultICR = 10.0;
   static const double _defaultMealQuantity = 1.0;
   static const int _defaultActivityDuration = 30;
 
@@ -34,13 +31,15 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
   bool _isSaving = false;
   bool _isLoadingMeals = false;
   bool _isLoadingActivity = false;
+  bool _isLoadingICR = true;
+  bool _isLoadingPatientMedicalInfo = true;
 
   String unplannedActivityIntensity = 'none';
   String plannedActivityIntensity = 'none';
 
-  final double targetGlucose = _defaultTargetGlucose;
-  final double isf = _defaultISF;
-  final double icr = _defaultICR;
+  double icr = 0.0;
+  double isf = 0.0;
+  double targetGlucose = 100.0;
 
   List<Map<String, dynamic>> _mealsList = [];
   Map<String, dynamic>? _selectedMeal;
@@ -66,12 +65,18 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
     super.initState();
     _initializeCache();
     _resetScreen();
+    _loadPatientMedicalInfo().then((_) {
+      setState(() {
+        _isLoadingPatientMedicalInfo = false;
+      });
+    });
     _loadUserMeals();
   }
 
   Future<void> _initializeCache() async {
-  _mealsCache = await Hive.openBox('meals_cache');
-}
+    _mealsCache = await Hive.openBox('meals_cache');
+  }
+
   void _resetScreen() {
     setState(() {
       unplannedActivity = false;
@@ -118,6 +123,45 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
     return _activityReductionFactors[intensity] ?? 0.0;
   }
 
+  Future<void> _loadPatientMedicalInfo() async {
+    try {
+      final User? currentUser = _auth.currentUser;
+      if (currentUser == null) return;
+
+      final doc =
+          await _firestore.collection('users').doc(currentUser.uid).get();
+
+      if (doc.exists) {
+        final data = doc.data();
+        if (data != null) {
+          setState(() {
+            icr = (data.containsKey('ratioInsulineGlucide') && data['ratioInsulineGlucide'] is num)
+                ? (data['ratioInsulineGlucide'] as num).toDouble()
+                : double.tryParse(data!['ratioInsulineGlucide'].toString()) ?? 0.0;
+
+            isf = (data.containsKey('sensitiviteInsuline') &&
+                    data['sensitiviteInsuline'] is num)
+                ? (data['sensitiviteInsuline'] as num).toDouble()
+                : double.tryParse(data!['sensitiviteInsuline'].toString()) ??
+                    50.0;
+
+            targetGlucose = (data.containsKey('targetGlucose') &&
+                    data['targetGlucose'] is num)
+                ? (data['targetGlucose'] as num).toDouble()
+                : double.tryParse(data!['targetGlucose'].toString()) ?? 100.0;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading patient medical info: $e');
+      setState(() {
+        icr = 0.0;
+        isf = 50.0;
+        targetGlucose = 100.0;
+      });
+    }
+  }
+
   Future<void> _loadUserMeals() async {
     if (_isLoadingMeals) return;
 
@@ -138,9 +182,9 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
 
       for (var doc in mealsSnapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
-        String mealName = data['name'] as String? ?? 
-                         data['nomRepas'] as String? ?? '';
-        
+        String mealName =
+            data['name'] as String? ?? data['nomRepas'] as String? ?? '';
+
         if (mealName.isEmpty) continue;
 
         double totalCarbs = 0.0;
@@ -205,7 +249,6 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
     return totalCarbs;
   }
 
-  // Helper to get reduction percent from calories
   double getReductionPercentFromCalories(double totalCalories) {
     if (totalCalories <= 50) return 5;
     if (totalCalories <= 100) return 10;
@@ -219,29 +262,28 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
     return 60;
   }
 
-  // Calculate insulin dose using functional insulin therapy method
   double calculateDose(double glucose, double carbs) {
-    // Calculate meal dose using the provided carbohydrate amount (which is already adjusted by quantity)
+    if (_isLoadingPatientMedicalInfo || icr <= 0 || isf <= 0) {
+      throw Exception(
+          'Medical information not loaded or invalid. Cannot calculate dose.');
+    }
+
     double mealDose = carbs / icr;
     print('Meal dose: $mealDose units (${carbs}g / $icr)');
 
-    // 2. Calculate correction dose
     double correctionDose = (glucose - targetGlucose) / isf;
     print(
         'Correction dose: $correctionDose units ((${glucose} - ${targetGlucose}) / $isf)');
 
-    // 3. Calculate total dose before activity adjustments
     double totalDose = mealDose + correctionDose;
     print('Total dose before activity adjustment: $totalDose units');
 
-    // 4. Apply activity reductions if applicable
     double totalActivityReduction = 0.0;
     lastUnplannedReductionUnits = 0.0;
     lastUnplannedReductionPercent = 0.0;
     lastPlannedReductionUnits = 0.0;
     lastPlannedReductionPercent = 0.0;
 
-    // Use the new table for reduction percent
     double reductionPercent = 0.0;
     double totalCalories = 0.0;
     if (unplannedActivity) {
@@ -307,18 +349,15 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
   }
 
   Future<Map<String, dynamic>> getMealData(String mealName) async {
-    // First check if it's in our loaded meals list
     for (var meal in _mealsList) {
       if (meal['name'].toString().toLowerCase() == mealName.toLowerCase()) {
         return meal;
       }
     }
 
-    // If not found in the list, try to find in Firestore directly
     try {
       final User? currentUser = _auth.currentUser;
       if (currentUser != null) {
-        // First try to find by exact name
         QuerySnapshot mealSnapshot = await _firestore
             .collection('meals')
             .where('userId', isEqualTo: currentUser.uid)
@@ -326,7 +365,6 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
             .limit(1)
             .get();
 
-        // If not found, try with nomRepas field
         if (mealSnapshot.docs.isEmpty) {
           mealSnapshot = await _firestore
               .collection('meals')
@@ -339,7 +377,6 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
         if (mealSnapshot.docs.isNotEmpty) {
           final data = mealSnapshot.docs.first.data() as Map<String, dynamic>;
 
-          // Get meal name
           String foundMealName = '';
           if (data.containsKey('name')) {
             foundMealName = data['name'] as String;
@@ -347,23 +384,18 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
             foundMealName = data['nomRepas'] as String;
           }
 
-          // Calculate total carbs
           double totalCarbs = 0;
 
-          // First try totalCarbs field
           if (data.containsKey('totalCarbs')) {
             totalCarbs = (data['totalCarbs'] is num)
                 ? (data['totalCarbs'] as num).toDouble()
                 : double.tryParse(data['totalCarbs'].toString()) ?? 0;
-          }
-          // If no totalCarbs, then try totalGlucides
-          else if (data.containsKey('totalGlucides')) {
+          } else if (data.containsKey('totalGlucides')) {
             totalCarbs = (data['totalGlucides'] is num)
                 ? (data['totalGlucides'] as num).toDouble()
                 : double.tryParse(data['totalGlucides'].toString()) ?? 0;
           }
 
-          // If totalCarbs is still 0 or suspiciously low, calculate from glucidesPer100g and quantity
           if (totalCarbs < 1 &&
               data.containsKey('glucidesPer100g') &&
               data.containsKey('quantity')) {
@@ -389,21 +421,18 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
       print('Error fetching meal from Firestore: $e');
     }
 
-    // If still not found, return empty data
     return {'id': '', 'name': mealName, 'carbs': 0.0};
   }
 
   Future<bool> checkIfMealExists(String name) async {
     if (name.isEmpty) return false;
 
-    // First check in our loaded meals list
     for (var meal in _mealsList) {
       if (meal['name'].toString().toLowerCase() == name.toLowerCase()) {
         return true;
       }
     }
 
-    // If not found in the list, try to find in Firestore directly
     final mealData = await getMealData(name);
     return (mealData['carbs'] as double) > 0;
   }
@@ -460,7 +489,7 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
                       MaterialPageRoute(builder: (_) => const AddPlateScreen()),
                     ).then((_) {
                       _loadUserMeals();
-                      Navigator.pop(context); // Close the dialog
+                      Navigator.pop(context);
                     });
                   },
                   child: const Text(
@@ -561,7 +590,6 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
       if (currentUser != null) {
         print('Checking for activities for user: ${currentUser.uid}');
 
-        // Get the most recent activity
         final QuerySnapshot activitySnapshot = await _firestore
             .collection('activities')
             .where('userId', isEqualTo: currentUser.uid)
@@ -576,7 +604,6 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
               activitySnapshot.docs.first.data() as Map<String, dynamic>;
           print('Latest activity data: $latestActivity');
 
-          // Extract calories with multiple possible field names
           double calories = 0.0;
           if (latestActivity.containsKey('cal30mn')) {
             calories =
@@ -593,7 +620,6 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
             print('Found calories in caloriesPer30Min field: $calories');
           }
 
-          // Extract duration
           int duration = 30;
           if (latestActivity.containsKey('duration')) {
             duration =
@@ -601,52 +627,48 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
             print('Found duration: $duration');
           }
 
-          // Calculate reduction based on calories with more varied percentages
           double reduction = 0.0;
           if (calories > 0) {
-            // More granular calorie-based reduction
             if (calories < 30) {
-              reduction = 0.05; // 5%
+              reduction = 0.05;
             } else if (calories < 60) {
-              reduction = 0.10; // 10%
+              reduction = 0.10;
             } else if (calories < 90) {
-              reduction = 0.15; // 15%
+              reduction = 0.15;
             } else if (calories < 120) {
-              reduction = 0.20; // 20%
+              reduction = 0.20;
             } else if (calories < 150) {
-              reduction = 0.25; // 25%
+              reduction = 0.25;
             } else if (calories < 200) {
-              reduction = 0.30; // 30%
+              reduction = 0.30;
             } else if (calories < 250) {
-              reduction = 0.35; // 35%
+              reduction = 0.35;
             } else {
-              reduction = 0.40; // 40%
+              reduction = 0.40;
             }
 
-            // Add duration bonus for longer activities
             if (duration > 45) {
-              reduction += 0.05; // +5% for longer activities
+              reduction += 0.05;
             }
           } else {
-            // If no calories, try to use activity name/type
             String activityName =
                 latestActivity['nom']?.toString().toLowerCase() ?? '';
             print('No calories found, using activity name: $activityName');
 
             if (activityName.contains('walk') ||
                 activityName.contains('light')) {
-              reduction = 0.10; // 10%
+              reduction = 0.10;
             } else if (activityName.contains('jog') ||
                 activityName.contains('moderate')) {
-              reduction = 0.20; // 20%
+              reduction = 0.20;
             } else if (activityName.contains('run') ||
                 activityName.contains('vigorous')) {
-              reduction = 0.30; // 30%
+              reduction = 0.30;
             } else if (activityName.contains('sprint') ||
                 activityName.contains('intense')) {
-              reduction = 0.40; // 40%
+              reduction = 0.40;
             } else {
-              reduction = 0.15; // Default 15% for unknown activities
+              reduction = 0.15;
             }
           }
 
@@ -661,7 +683,6 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
           });
         } else {
           print('No activities found');
-          // Don't set any reduction if no activities found
           setState(() {
             if (isPlanned) {
               plannedActivityReductionFactor = 0.0;
@@ -673,7 +694,6 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
       }
     } catch (e) {
       print('Error checking recent activity: $e');
-      // On error, don't set any reduction
       setState(() {
         if (isPlanned) {
           plannedActivityReductionFactor = 0.0;
@@ -688,7 +708,6 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
     }
   }
 
-  // Replace the _handleUnplannedActivity method
   void _handleUnplannedActivity() async {
     print('Starting unplanned activity selection');
     final User? currentUser = _auth.currentUser;
@@ -730,21 +749,22 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
                       context,
                       MaterialPageRoute(builder: (_) => const ActivityScreen()),
                     ).then((_) {
-                      // After adding activity, reset activity selection and load recent list
                       if (unplannedActivity) {
                         setState(() {
                           unplannedActivity = false;
                           selectedUnplannedActivityCalories = 0.0;
-                          selectedUnplannedActivityDuration = _defaultActivityDuration;
+                          selectedUnplannedActivityDuration =
+                              _defaultActivityDuration;
                         });
                       } else if (plannedActivity) {
                         setState(() {
                           plannedActivity = false;
                           selectedPlannedActivityCalories = 0.0;
-                          selectedPlannedActivityDuration = _defaultActivityDuration;
+                          selectedPlannedActivityDuration =
+                              _defaultActivityDuration;
                         });
                       }
-                      Navigator.pop(context); // Close dialog
+                      Navigator.pop(context);
                     });
                   },
                   child: const Text(
@@ -775,7 +795,6 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
                     .limit(5)
                     .get(),
                 builder: (context, snapshot) {
-                  // Debug prints
                   if (snapshot.hasError) {
                     print('Activity query error: \${snapshot.error}');
                   }
@@ -786,7 +805,6 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
                       print('Activity doc: \${doc.data()}');
                     }
                   }
-                  // Fallback: if error or no data, try to show all activities
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
                       child: CircularProgressIndicator(
@@ -807,36 +825,40 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
                       ),
                     );
                   }
-                  
+
                   return ListView.builder(
                     shrinkWrap: true,
                     itemCount: snapshot.data!.docs.length,
                     itemBuilder: (context, index) {
                       final doc = snapshot.data!.docs[index];
                       final activity = doc.data() as Map<String, dynamic>;
-                      
-                      // Safely extract and round calories
+
                       double calories = 0.0;
                       if (activity.containsKey('cal30mn')) {
                         calories = (activity['cal30mn'] is num)
                             ? (activity['cal30mn'] as num).toDouble()
-                            : double.tryParse(activity['cal30mn'].toString()) ?? 0.0;
+                            : double.tryParse(activity['cal30mn'].toString()) ??
+                                0.0;
                       } else if (activity.containsKey('calories')) {
-                         calories = (activity['calories'] is num)
+                        calories = (activity['calories'] is num)
                             ? (activity['calories'] as num).toDouble()
-                            : double.tryParse(activity['calories'].toString()) ?? 0.0;
+                            : double.tryParse(
+                                    activity['calories'].toString()) ??
+                                0.0;
                       } else if (activity.containsKey('caloriesPer30Min')) {
-                          calories = (activity['caloriesPer30Min'] is num)
+                        calories = (activity['caloriesPer30Min'] is num)
                             ? (activity['caloriesPer30Min'] as num).toDouble()
-                            : double.tryParse(activity['caloriesPer30Min'].toString()) ?? 0.0;
+                            : double.tryParse(
+                                    activity['caloriesPer30Min'].toString()) ??
+                                0.0;
                       }
-                      
-                      // Safely extract duration
+
                       int duration = 30;
                       if (activity.containsKey('duration')) {
-                         duration = (activity['duration'] is num)
+                        duration = (activity['duration'] is num)
                             ? (activity['duration'] as num).toInt()
-                            : int.tryParse(activity['duration'].toString()) ?? 30;
+                            : int.tryParse(activity['duration'].toString()) ??
+                                30;
                       }
 
                       return Container(
@@ -913,7 +935,6 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
     }
   }
 
-  // Replace the _handlePlannedActivity method
   void _handlePlannedActivity() async {
     print('Starting planned activity selection');
     final User? currentUser = _auth.currentUser;
@@ -955,21 +976,22 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
                       context,
                       MaterialPageRoute(builder: (_) => const ActivityScreen()),
                     ).then((_) {
-                      // After adding activity, reset activity selection and load recent list
                       if (unplannedActivity) {
                         setState(() {
                           unplannedActivity = false;
                           selectedUnplannedActivityCalories = 0.0;
-                          selectedUnplannedActivityDuration = _defaultActivityDuration;
+                          selectedUnplannedActivityDuration =
+                              _defaultActivityDuration;
                         });
                       } else if (plannedActivity) {
                         setState(() {
                           plannedActivity = false;
                           selectedPlannedActivityCalories = 0.0;
-                          selectedPlannedActivityDuration = _defaultActivityDuration;
+                          selectedPlannedActivityDuration =
+                              _defaultActivityDuration;
                         });
                       }
-                      Navigator.pop(context); // Close dialog
+                      Navigator.pop(context);
                     });
                   },
                   child: const Text(
@@ -1000,7 +1022,6 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
                     .limit(5)
                     .get(),
                 builder: (context, snapshot) {
-                  // Debug prints
                   if (snapshot.hasError) {
                     print('Activity query error: \${snapshot.error}');
                   }
@@ -1011,7 +1032,6 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
                       print('Activity doc: \${doc.data()}');
                     }
                   }
-                  // Fallback: if error or no data, try to show all activities
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
                       child: CircularProgressIndicator(
@@ -1032,36 +1052,40 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
                       ),
                     );
                   }
-                  
+
                   return ListView.builder(
                     shrinkWrap: true,
                     itemCount: snapshot.data!.docs.length,
                     itemBuilder: (context, index) {
                       final doc = snapshot.data!.docs[index];
                       final activity = doc.data() as Map<String, dynamic>;
-                      
-                      // Safely extract and round calories
+
                       double calories = 0.0;
                       if (activity.containsKey('cal30mn')) {
                         calories = (activity['cal30mn'] is num)
                             ? (activity['cal30mn'] as num).toDouble()
-                            : double.tryParse(activity['cal30mn'].toString()) ?? 0.0;
+                            : double.tryParse(activity['cal30mn'].toString()) ??
+                                0.0;
                       } else if (activity.containsKey('calories')) {
-                         calories = (activity['calories'] is num)
+                        calories = (activity['calories'] is num)
                             ? (activity['calories'] as num).toDouble()
-                            : double.tryParse(activity['calories'].toString()) ?? 0.0;
+                            : double.tryParse(
+                                    activity['calories'].toString()) ??
+                                0.0;
                       } else if (activity.containsKey('caloriesPer30Min')) {
-                          calories = (activity['caloriesPer30Min'] is num)
+                        calories = (activity['caloriesPer30Min'] is num)
                             ? (activity['caloriesPer30Min'] as num).toDouble()
-                            : double.tryParse(activity['caloriesPer30Min'].toString()) ?? 0.0;
+                            : double.tryParse(
+                                    activity['caloriesPer30Min'].toString()) ??
+                                0.0;
                       }
-                      
-                      // Safely extract duration
+
                       int duration = 30;
                       if (activity.containsKey('duration')) {
-                         duration = (activity['duration'] is num)
+                        duration = (activity['duration'] is num)
                             ? (activity['duration'] as num).toInt()
-                            : int.tryParse(activity['duration'].toString()) ?? 30;
+                            : int.tryParse(activity['duration'].toString()) ??
+                                30;
                       }
 
                       return Container(
@@ -1139,6 +1163,28 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
   }
 
   void _saveLog() async {
+    if (_isSaving || _isLoadingPatientMedicalInfo || icr <= 0 || isf <= 0) {
+      if (!_isLoadingPatientMedicalInfo) {
+        String errorMessage = '';
+        if (icr <= 0) errorMessage += 'Invalid ICR. ';
+        if (isf <= 0) errorMessage += 'Invalid Insulin Sensitivity. ';
+
+        if (errorMessage.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(
+                    'Please set valid medical information: $errorMessage')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Medical information not fully loaded.')),
+          );
+        }
+      }
+      return;
+    }
+
     final glucoseText = glucoseController.text.trim();
     final meal = mealController.text.trim();
 
@@ -1174,16 +1220,13 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
 
     final glucose = double.parse(glucoseText);
 
-    // If we have a selected meal, use that directly
     double carbs = 0;
     if (_selectedMeal != null) {
-      carbs = _selectedMeal!['carbs'] as double; // Changed from totalCarbs to carbs
+      carbs = _selectedMeal!['carbs'] as double;
     } else {
-      // Otherwise check if the meal exists
       final exists = await checkIfMealExists(meal);
 
       if (!exists) {
-        // If meal doesn't exist, ask if they want to create it or enter carbs manually
         final manualCarbs = await showDialog<double>(
           context: context,
           barrierDismissible: false,
@@ -1221,7 +1264,7 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
               actions: [
                 TextButton(
                   onPressed: () {
-                    Navigator.pop(context, null); // Cancel
+                    Navigator.pop(context, null);
                   },
                   child: const Text('Cancel'),
                 ),
@@ -1231,9 +1274,8 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
                       context,
                       MaterialPageRoute(builder: (_) => const AddPlateScreen()),
                     ).then((_) {
-                      // Refresh meals when returning from add plate screen
                       _loadUserMeals();
-                      Navigator.pop(context, null); // Close dialog
+                      Navigator.pop(context, null);
                     });
                   },
                   child: const Text('Create Meal'),
@@ -1266,27 +1308,20 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
 
         carbs = manualCarbs;
       } else {
-        // Get meal data
         final mealData = await getMealData(meal);
-        carbs = mealData['carbs'] as double; // Changed from totalCarbs to carbs
+        carbs = mealData['carbs'] as double;
       }
     }
 
-    // Calculate final carbs for the dose calculation and saving
     double adjustedCarbs = carbs * _mealQuantity;
     print(
-        'Final carbohydrates for calculation: $adjustedCarbs g (Base: $carbs g * Quantity: $_mealQuantity)'); // Debug print
+        'Final carbohydrates for calculation: $adjustedCarbs g (Base: $carbs g * Quantity: $_mealQuantity)');
 
-    // Calculate insulin dose
-    final dose = calculateDose(
-        glucose, adjustedCarbs); // Pass adjusted carbs to calculateDose
+    final dose = calculateDose(glucose, adjustedCarbs);
 
-    // Calculate individual components for the breakdown
-    final mealDose =
-        adjustedCarbs / icr; // Use adjusted carbs for breakdown display
+    final mealDose = adjustedCarbs / icr;
     final correctionDose = (glucose - targetGlucose) / isf;
 
-    // Calculate total effective activity reduction
     double effectiveActivityReduction = 0.0;
     if (unplannedActivity) {
       effectiveActivityReduction += unplannedActivityReductionFactor;
@@ -1295,7 +1330,6 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
       effectiveActivityReduction += plannedActivityReductionFactor;
     }
 
-    // Create Injection object
     final User? currentUser = _auth.currentUser;
     final now = DateTime.now();
     final timeOfDay = TimeOfDay.fromDateTime(now);
@@ -1303,7 +1337,7 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
     final injection = Injection(
       tempsInject: timeOfDay,
       glycemie: glucose.round(),
-      quantiteGlu: adjustedCarbs, // Save the calculated adjusted carbs
+      quantiteGlu: adjustedCarbs,
       doseInsuline: dose,
       mealName: meal,
       userId: currentUser?.uid,
@@ -1311,39 +1345,32 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
       activityReduction: effectiveActivityReduction,
     );
 
-    // Save the calculation to Firestore
     try {
       if (currentUser != null) {
-        // Save injection data
         await injection.saveToFirestore();
         print('Insulin dose saved successfully');
 
-        // Update last operations in user document
-        await _firestore.collection('users').doc(currentUser.uid).set(
-            {
-              'lastOperations': {
-                'injection': {
-                  'value': dose.toDouble(),
-                  'timestamp': now.toIso8601String(),
-                  'glucoseValue': glucose,
-                },
-                'meal': {
-                  'value': meal,
-                  'timestamp': now.toIso8601String(),
-                }
-              }
+        await _firestore.collection('users').doc(currentUser.uid).set({
+          'lastOperations': {
+            'injection': {
+              'value': dose.toDouble(),
+              'timestamp': now.toIso8601String(),
+              'glucoseValue': glucose,
             },
-            SetOptions(merge: true));
+            'meal': {
+              'value': meal,
+              'timestamp': now.toIso8601String(),
+            }
+          }
+        }, SetOptions(merge: true));
         print('User last operations updated successfully');
       }
     } catch (e) {
       print('Error saving insulin dose: $e');
     }
 
-    // Round to nearest whole number for display
-    final roundedDose = dose.round(); // Round to the nearest whole number
+    final roundedDose = dose.round();
 
-    // Navigate to result screen with calculation details
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -1362,15 +1389,13 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
           mealName: meal,
           unplannedActivityCalories: _calculatedUnplannedActivityCalories,
           plannedActivityCalories: _calculatedPlannedActivityCalories,
-          adjustedCarbAmount:
-              adjustedCarbs, // Pass the adjusted carbs to the result screen
+          adjustedCarbAmount: adjustedCarbs,
         ),
       ),
     );
-    // Reset form when returning from result screen
     _resetScreen();
     if (result == true) {
-      Navigator.pop(context, true); // Pop this screen and signal reload
+      Navigator.pop(context, true);
     }
     setState(() => _isSaving = false);
   }
@@ -1619,7 +1644,6 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    // Meal Quantity Input with Step Buttons (Moved to correct position)
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1779,7 +1803,12 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isSaving ? null : _saveLog,
+                  onPressed: (_isSaving ||
+                          _isLoadingPatientMedicalInfo ||
+                          icr <= 0 ||
+                          isf <= 0)
+                      ? null
+                      : _saveLog,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4A7BF7),
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -1787,7 +1816,7 @@ class _CalculateDoseScreenState extends State<CalculateDoseScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: _isSaving
+                  child: (_isSaving || _isLoadingPatientMedicalInfo)
                       ? const SizedBox(
                           height: 20,
                           width: 20,
