@@ -532,62 +532,60 @@ class _HomeScreenState extends State<HomeScreen> {
 
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 15.0),
-                child: SizedBox(
-                  height: 340,
-                  child: GridView.count(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 16,
-                    crossAxisSpacing: 16,
-                    childAspectRatio: 1,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: [
-                      CustomCard(
-                        text: 'Calculate dose insulin',
-                        icon: Icons.medication_liquid,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) =>
-                                    const CalculateDoseScreen()),
-                          ).then((_) => _loadUserData());
-                        },
-                      ),
-                      CustomCard(
-                        text: 'Log glucose',
-                        icon: Icons.bloodtype,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const LogGlucoseScreen()),
-                          ).then((_) => _loadUserData());
-                        },
-                      ),
-                      CustomCard(
-                        text: 'Add meal',
-                        icon: Icons.restaurant_menu,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const AddPlateScreen()),
-                          ).then((_) => _loadUserData());
-                        },
-                      ),
-                      CustomCard(
-                        text: 'Add activity',
-                        icon: Icons.directions_run,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const ActivityScreen()),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
+                child: GridView.count(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 16,
+                  crossAxisSpacing: 16,
+                  childAspectRatio: 1,
+                  physics: const NeverScrollableScrollPhysics(),
+                  shrinkWrap: true,
+                  children: [
+                    CustomCard(
+                      text: 'Calculate dose insulin',
+                      icon: Icons.medication_liquid,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) =>
+                                  const CalculateDoseScreen()),
+                        ).then((_) => _loadUserData());
+                      },
+                    ),
+                    CustomCard(
+                      text: 'Log glucose',
+                      icon: Icons.bloodtype,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const LogGlucoseScreen()),
+                        ).then((_) => _loadUserData());
+                      },
+                    ),
+                    CustomCard(
+                      text: 'Add meal',
+                      icon: Icons.restaurant_menu,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const AddPlateScreen()),
+                        ).then((_) => _loadUserData());
+                      },
+                    ),
+                    CustomCard(
+                      text: 'Add activity',
+                      icon: Icons.directions_run,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const ActivityScreen()),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ),
 
