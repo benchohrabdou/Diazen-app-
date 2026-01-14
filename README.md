@@ -1,16 +1,54 @@
-# diazen
+# DIAZEN
 
-A new Flutter project.
+## Final-Year Project – 2025  
 
-## Getting Started
 
-This project is a starting point for a Flutter application.
+---
 
-A few resources to get you started if this is your first Flutter project:
+##  Overview  
+This mobile application assists diabetic patients in managing **Functional Insulin Therapy (FIT)**.  
+It provides structured tracking of meals, carbohydrates, physical activity, and blood glucose levels, along with a module for calculating **prandial insulin doses** based on FIT principles.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+This project was developed as part of my **Bachelor’s final-year project** and serves as the foundation for a potential **e-health startup solution**.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+---
+
+##  Main Features
+
+###  Meal & Carbohydrate Tracking  
+- Log meals  
+- Estimate carbohydrate intake  
+- Keep a complete meal history  
+
+###  Blood Glucose Monitoring  
+- Track pre- and post-meal glucose values  
+- Visualize trends and progress  
+
+###  Physical Activity Tracking  
+- Register daily activities  
+- Understand how lifestyle affects blood glucose  
+
+###  Prandial Insulin Dose Calculator  
+- Calculation based on:  
+  - Carb ratio  
+  - Insulin sensitivity  
+  - Correction factor  
+  - Meal context (stress, physical activity, etc.)  
+- Follows Functional Insulin Therapy guidelines  
+
+###  Dashboard & History  
+- Daily summary view  
+- Structured history of all user data  
+
+---
+
+##  Technologies Used  
+- **Flutter** (Dart)  
+- **Firebase Authentication**  
+- **Cloud Firestore (NoSQL)**  
+- **Firebase Storage**  
+- MVC-inspired architecture  
+
+---
+
+
